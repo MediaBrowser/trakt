@@ -21,7 +21,7 @@
                     <div class="inputContainer">
                         <input is="emby-input" id="txtTraktPIN" name="txtTraktPIN" type="text" label="Authentication PIN:" />
                         <div class="fieldDescription">
-                            <a href="https://trakt.tv/oauth/authorize?response_type=code&client_id=229219b2db18f433b5503358d7055e366e7ffb5f1dc1d6904d131d0ed806ccac&redirect_uri=urn:ietf:wg:oauth:2.0:oob" target="_blank">Get PIN.</a> On the next request to the Trakt API, this PIN will be exchanged for tokens, and the text field will be cleared. You can input a new PIN to get new tokens.
+                            <a href="https://trakt.tv/oauth/authorize?response_type=code&client_id=c44548028dcd8f31e9bee55318562e6e5deb8524f5ca3e77e167fd3b1c9ce380&redirect_uri=urn:ietf:wg:oauth:2.0:oob" target="_blank">Get PIN.</a> When the pin is successfully exchanged for a token, it is deleted from this field. Afterwards, the hidden token is used.
                         </div>
                     </div>
                     <div>
@@ -45,7 +45,16 @@
                             <span>Update Trakt watched history during Scheduled Task</span>
                         </label>
                         <div class="fieldDescription checkboxFieldDescription">
-                            If checked, Emby will only sync from Trakt during the Trakt scheduled tasks.
+                            If checked, Emby will sync with Trakt during the Trakt scheduled tasks. If unchecked, watch states on Trakt will not be changed. The scrobble feature will still work even if unchecked (sending realtime progress updates and marking the items as watched immediately when finished).
+                        </div>
+                    </div>
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label>
+                            <input is="emby-checkbox" type="checkbox" id="chkSyncCollection" name="chkSyncCollection" />
+                            <span>Sync Collection during Scheduled Task</span>
+                        </label>
+                        <div class="fieldDescription checkboxFieldDescription">
+                            When checked items will to be added to or removed from collection on Trakt.
                         </div>
                     </div>
                     <div class="checkboxContainer checkboxContainer-withDescription">
@@ -54,7 +63,7 @@
                             <span>Enable debug logging</span>
                         </label>
                         <div class="fieldDescription checkboxFieldDescription">
-                            When enabled, all data sent to trakt is logged.
+                            When enabled, all data sent to trakt is logged. Use this when posting logs to report a problem, together with debug logging.
                         </div>
                     </div>
                     <div class="checkboxContainer checkboxContainer-withDescription">
@@ -104,6 +113,7 @@
                                     PIN: "",
                                     SkipUnwatchedImportFromTrakt: true,
                                     PostWatchedHistory: true,
+                                    SyncCollection: true,
                                     ExtraLogging: false,
                                     ExportMediaInfo: false
                                 };
@@ -113,6 +123,7 @@
                             $('#txtTraktPIN', page).val(currentUserConfig.PIN); 
                             $('#chkSkipUnwatchedImportFromTrakt', page).checked(currentUserConfig.SkipUnwatchedImportFromTrakt).checkboxradio("refresh");
                             $('#chkPostWatchedHistory', page).checked(currentUserConfig.PostWatchedHistory).checkboxradio("refresh");
+                            $('#chkSyncCollection', page).checked(currentUserConfig.SyncCollection).checkboxradio("refresh");
                             $('#chkExtraLogging', page).checked(currentUserConfig.ExtraLogging).checkboxradio("refresh");
                             $('#chkExportMediaInfo', page).checked(currentUserConfig.ExportMediaInfo).checkboxradio("refresh");
                             // List the folders the user can access
@@ -173,6 +184,7 @@
                         }
                         currentUserConfig.SkipUnwatchedImportFromTrakt = $('#chkSkipUnwatchedImportFromTrakt', page).checked();
                         currentUserConfig.PostWatchedHistory = $('#chkPostWatchedHistory', page).checked();
+                        currentUserConfig.SyncCollection = $('#chkSyncCollection', page).checked();
                         currentUserConfig.ExtraLogging = $('#chkExtraLogging', page).checked();
                         currentUserConfig.ExportMediaInfo = $('#chkExportMediaInfo', page).checked();
                         currentUserConfig.PIN = $('#txtTraktPIN', page).val();

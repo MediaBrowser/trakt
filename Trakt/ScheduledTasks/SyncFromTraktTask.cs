@@ -141,7 +141,7 @@ namespace Trakt.ScheduledTasks
             foreach (var movie in mediaItems.OfType<Movie>())
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var matchedMovie = FindMatch(movie, traktWatchedMovies);
+                var matchedMovie = Match.FindMatch(movie, traktWatchedMovies);
 
                 if (matchedMovie != null)
                 {
@@ -204,7 +204,7 @@ namespace Trakt.ScheduledTasks
             foreach (var episode in mediaItems.OfType<Episode>())
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var matchedShow = FindMatch(episode.Series, traktWatchedShows);
+                var matchedShow = Match.FindMatch(episode.Series, traktWatchedShows);
 
                 if (matchedShow != null)
                 {
@@ -301,70 +301,6 @@ namespace Trakt.ScheduledTasks
             episodeString.Append("'");
 
             return episodeString.ToString();
-        }
-
-        public static TraktShowWatched FindMatch(Series item, IEnumerable<TraktShowWatched> results)
-        {
-            return results.FirstOrDefault(i => IsMatch(item, i.show));
-        }
-
-        public static TraktShowCollected FindMatch(Series item, IEnumerable<TraktShowCollected> results)
-        {
-            return results.FirstOrDefault(i => IsMatch(item, i.show));
-        }
-
-        public static TraktMovieWatched FindMatch(BaseItem item, IEnumerable<TraktMovieWatched> results)
-        {
-            return results.FirstOrDefault(i => IsMatch(item, i.movie));
-        }
-
-        public static IEnumerable<TraktMovieCollected> FindMatches(BaseItem item, IEnumerable<TraktMovieCollected> results)
-        {
-            return results.Where(i => IsMatch(item, i.movie)).ToList();
-        }
-
-        public static bool IsMatch(BaseItem item, TraktMovie movie)
-        {
-            var imdb = item.GetProviderId(MetadataProviders.Imdb);
-
-            if (!string.IsNullOrWhiteSpace(imdb) &&
-                string.Equals(imdb, movie.ids.imdb, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-
-            var tmdb = item.GetProviderId(MetadataProviders.Tmdb);
-
-            if (movie.ids.tmdb.HasValue && string.Equals(tmdb, movie.ids.tmdb.Value.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-
-            if (item.Name == movie.title && item.ProductionYear == movie.year)
-            {
-                return true;
-            }
-
-            return false;
-        }
-
-        public static bool IsMatch(Series item, TraktShow show)
-        {
-            var tvdb = item.GetProviderId(MetadataProviders.Tvdb);
-            if (!string.IsNullOrWhiteSpace(tvdb) &&
-                string.Equals(tvdb, show.ids.tvdb.ToString(), StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-
-            var imdb = item.GetProviderId(MetadataProviders.Imdb);
-            if (!string.IsNullOrWhiteSpace(imdb) &&
-                string.Equals(imdb, show.ids.imdb, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-
-            return false;
         }
 
         public string Key => "TraktSyncFromTraktTask";

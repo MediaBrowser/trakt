@@ -1,13 +1,9 @@
 ﻿using MediaBrowser.Model.Querying;
+using Trakt.Api.DataContracts.Sync.Collection;
+using TraktMovieCollected = Trakt.Api.DataContracts.Users.Collection.TraktMovieCollected;
 
 namespace Trakt.ScheduledTasks
 {
-    using System;
-    using System.Collections.Generic;
-    using System.Linq;
-    using System.Threading;
-    using System.Threading.Tasks;
-
     using MediaBrowser.Common.Net;
     using MediaBrowser.Controller;
     using MediaBrowser.Controller.Entities;
@@ -19,7 +15,11 @@ namespace Trakt.ScheduledTasks
     using MediaBrowser.Model.Logging;
     using MediaBrowser.Model.Serialization;
     using MediaBrowser.Model.Tasks;
-
+    using System;
+    using System.Collections.Generic;
+    using System.Linq;
+    using System.Threading;
+    using System.Threading.Tasks;
     using Trakt.Api;
     using Trakt.Api.DataContracts.Sync;
     using Trakt.Helpers;
@@ -141,7 +141,7 @@ namespace Trakt.ScheduledTasks
                         {
                             IncludeItemTypes = new[] { typeof(Movie).Name },
                             IsVirtualItem = false,
-                            OrderBy = new []
+                            OrderBy = new[]
                             {
                                 new ValueTuple<string, SortOrder>(ItemSortBy.SortName, SortOrder.Ascending)
                             }
@@ -149,6 +149,7 @@ namespace Trakt.ScheduledTasks
                     .Where(x => _traktApi.CanSync(x, traktUser))
                     .ToList();
             var collectedMovies = new List<Movie>();
+            var uncollectedMovies = new List<TraktMovieCollected>();
             var playedMovies = new List<Movie>();
             var unplayedMovies = new List<Movie>();
 
@@ -160,7 +161,7 @@ namespace Trakt.ScheduledTasks
                 var userData = _userDataManager.GetUserData(user, child);
 
                 // if movie is not collected, or (export media info setting is enabled and every collected matching movie has different metadata), collect it
-                var collectedMathingMovies = SyncFromTraktTask.FindMatches(libraryMovie, traktCollectedMovies).ToList();
+                var collectedMathingMovies = Match.FindMatches(libraryMovie, traktCollectedMovies).ToList();
                 if (!collectedMathingMovies.Any()
                     || (traktUser.ExportMediaInfo
                         && collectedMathingMovies.All(
@@ -169,7 +170,7 @@ namespace Trakt.ScheduledTasks
                     collectedMovies.Add(libraryMovie);
                 }
 
-                var movieWatched = SyncFromTraktTask.FindMatch(libraryMovie, traktWatchedMovies);
+                var movieWatched = Match.FindMatch(libraryMovie, traktWatchedMovies);
 
                 // if the movie has been played locally and is unplayed on trakt.tv then add it to the list
                 if (userData.Played)
@@ -208,9 +209,23 @@ namespace Trakt.ScheduledTasks
                 decisionProgress.Report(100);
             }
 
-            // send movies to mark collected
-            await SendMovieCollectionUpdates(true, traktUser, collectedMovies, progress.Split(4), cancellationToken).ConfigureAwait(false);
+            foreach (var traktCollectedMovie in traktCollectedMovies)
+            {
+                if (!Match.FindMatches(traktCollectedMovie, libraryMovies).Any())
+                {
+                    _logger.Debug("No matches for {0}, will be uncollected on Trakt", _jsonSerializer.SerializeToString(traktCollectedMovie.movie));
+                    uncollectedMovies.Add(traktCollectedMovie);
+                }
+            }
 
+            if (traktUser.SyncCollection)
+            {
+                // send movies to mark collected
+                await SendMovieCollectionAdds(traktUser, collectedMovies, progress.Split(4), cancellationToken).ConfigureAwait(false);
+
+                // send movies to mark uncollected
+                await SendMovieCollectionRemoves(traktUser, uncollectedMovies, progress.Split(4), cancellationToken).ConfigureAwait(false);
+            }
             // send movies to mark watched
             await SendMoviePlaystateUpdates(true, traktUser, playedMovies, progress.Split(4), cancellationToken).ConfigureAwait(false);
 
@@ -218,14 +233,51 @@ namespace Trakt.ScheduledTasks
             await SendMoviePlaystateUpdates(false, traktUser, unplayedMovies, progress.Split(4), cancellationToken).ConfigureAwait(false);
         }
 
-        private async Task SendMovieCollectionUpdates(
-            bool collected,
+        private async Task SendMovieCollectionRemoves(
+            TraktUser traktUser,
+            List<TraktMovieCollected> movies,
+            ISplittableProgress<double> progress,
+            CancellationToken cancellationToken)
+        {
+            _logger.Info("Movies to remove from collection: " + movies.Count);
+            if (movies.Count > 0)
+            {
+                try
+                {
+                    var dataContracts =
+                        await
+                            _traktApi.SendCollectionRemovalsAsync(
+                                movies.Select(m => m.movie).ToList(),
+                                traktUser,
+                                cancellationToken).ConfigureAwait(false);
+                    if (dataContracts != null)
+                    {
+                        foreach (var traktSyncResponse in dataContracts)
+                        {
+                            LogTraktResponseDataContract(traktSyncResponse);
+                        }
+                    }
+                }
+                catch (ArgumentNullException argNullEx)
+                {
+                    _logger.ErrorException("ArgumentNullException handled sending movies to trakt.tv", argNullEx);
+                }
+                catch (Exception e)
+                {
+                    _logger.ErrorException("Exception handled sending movies to trakt.tv", e);
+                }
+
+                progress.Report(100);
+            }
+        }
+
+        private async Task SendMovieCollectionAdds(
             TraktUser traktUser,
             List<Movie> movies,
             ISplittableProgress<double> progress,
             CancellationToken cancellationToken)
         {
-            _logger.Info("Movies to " + (collected ? "add to" : "remove from") + " Collection: " + movies.Count);
+            _logger.Info("Movies to add to collection: " + movies.Count);
             if (movies.Count > 0)
             {
                 try
@@ -236,7 +288,7 @@ namespace Trakt.ScheduledTasks
                                 movies,
                                 traktUser,
                                 cancellationToken,
-                                collected ? EventType.Add : EventType.Remove).ConfigureAwait(false);
+                                EventType.Add).ConfigureAwait(false);
                     if (dataContracts != null)
                     {
                         foreach (var traktSyncResponse in dataContracts)
@@ -306,7 +358,7 @@ namespace Trakt.ScheduledTasks
                         {
                             IncludeItemTypes = new[] { typeof(Episode).Name },
                             IsVirtualItem = false,
-                            OrderBy = new []
+                            OrderBy = new[]
                             {
                                 new ValueTuple<string, SortOrder>(ItemSortBy.SeriesSortName, SortOrder.Ascending)
                             }
@@ -314,9 +366,22 @@ namespace Trakt.ScheduledTasks
                     .Where(x => _traktApi.CanSync(x, traktUser))
                     .ToList();
 
+            var series =
+                _libraryManager.GetItemList(
+                        new InternalItemsQuery(user)
+                        {
+                            IncludeItemTypes = new[] { typeof(Series).Name },
+                            IsVirtualItem = false
+                        })
+                    .Where(x => _traktApi.CanSync(x, traktUser))
+                    .OfType<Series>()
+                    .ToList();
+
             var collectedEpisodes = new List<Episode>();
+            var uncollectedShows = new List<Api.DataContracts.Sync.Collection.TraktShowCollected>();
             var playedEpisodes = new List<Episode>();
             var unplayedEpisodes = new List<Episode>();
+
 
             var decisionProgress = progress.Split(4).Split(episodeItems.Count);
             foreach (var child in episodeItems)
@@ -325,7 +390,7 @@ namespace Trakt.ScheduledTasks
                 var episode = child as Episode;
                 var userData = _userDataManager.GetUserData(user, episode);
                 var isPlayedTraktTv = false;
-                var traktWatchedShow = SyncFromTraktTask.FindMatch(episode.Series, traktWatchedShows);
+                var traktWatchedShow = Match.FindMatch(episode.Series, traktWatchedShows);
 
                 if (traktWatchedShow?.seasons != null && traktWatchedShow.seasons.Count > 0)
                 {
@@ -364,7 +429,7 @@ namespace Trakt.ScheduledTasks
                     unplayedEpisodes.Add(episode);
                 }
 
-                var traktCollectedShow = SyncFromTraktTask.FindMatch(episode.Series, traktCollectedShows);
+                var traktCollectedShow = Match.FindMatch(episode.Series, traktCollectedShows);
                 if (traktCollectedShow?.seasons == null
                     || traktCollectedShow.seasons.All(x => x.number != episode.ParentIndexNumber)
                     || traktCollectedShow.seasons.First(x => x.number == episode.ParentIndexNumber)
@@ -375,8 +440,65 @@ namespace Trakt.ScheduledTasks
 
                 decisionProgress.Report(100);
             }
+            // Check if we have all the collected items, add missing to uncollectedShows
+            foreach (var traktShowCollected in traktCollectedShows)
+            {
+                _logger.Debug(_jsonSerializer.SerializeToString(series));
+                var seriesMatch = Match.FindMatch(traktShowCollected.show, series);
+                if (seriesMatch != null)
+                {
+                    var seriesEpisodes = episodeItems.OfType<Episode>().Where(e => e.Series.Id == seriesMatch.Id);
 
-            await SendEpisodeCollectionUpdates(true, traktUser, collectedEpisodes, progress.Split(4), cancellationToken).ConfigureAwait(false);
+                    var uncollectedSeasons = new List<TraktShowCollected.TraktSeasonCollected>();
+                    foreach (var traktSeasonCollected in traktShowCollected.seasons)
+                    {
+                        var uncollectedEpisodes =
+                            new List<TraktEpisodeCollected>();
+                        foreach (var traktEpisodeCollected in traktSeasonCollected.episodes)
+                        {
+                            if (seriesEpisodes.Any(e =>
+                                e.ParentIndexNumber == traktSeasonCollected.number &&
+                                e.IndexNumber == traktEpisodeCollected.number))
+                            {
+
+                            }
+                            else
+                            {
+                                _logger.Debug("Could not match S{0}E{1} from {2} to any Emby episode, marking for collection removal", traktSeasonCollected.number, traktEpisodeCollected.number, _jsonSerializer.SerializeToString(traktShowCollected.show));
+                                uncollectedEpisodes.Add(new TraktEpisodeCollected() { number = traktEpisodeCollected.number });
+                            }
+                        }
+
+                        if (uncollectedEpisodes.Any())
+                        {
+                            uncollectedSeasons.Add(new TraktShowCollected.TraktSeasonCollected() { number = traktSeasonCollected.number, episodes = uncollectedEpisodes });
+                        }
+                    }
+
+                    if (uncollectedSeasons.Any())
+                    {
+                        uncollectedShows.Add(new TraktShowCollected() { ids = traktShowCollected.show.ids, title = traktShowCollected.show.title, year = traktShowCollected.show.year, seasons = uncollectedSeasons });
+                    }
+
+                }
+                else
+                {
+                    _logger.Debug("Could not match {0} to any Emby show, marking for collection removal", _jsonSerializer.SerializeToString(traktShowCollected.show));
+                    uncollectedShows.Add(new TraktShowCollected() { ids = traktShowCollected.show.ids, title = traktShowCollected.show.title, year = traktShowCollected.show.year });
+                }
+
+
+
+            }
+
+            if (traktUser.SyncCollection)
+            {
+                await SendEpisodeCollectionAdds(traktUser, collectedEpisodes, progress.Split(4), cancellationToken)
+                    .ConfigureAwait(false);
+
+                await SendEpisodeCollectionRemovals(traktUser, uncollectedShows, progress.Split(5), cancellationToken)
+                    .ConfigureAwait(false);
+            }
 
             await SendEpisodePlaystateUpdates(true, traktUser, playedEpisodes, progress.Split(4), cancellationToken).ConfigureAwait(false);
 
@@ -414,8 +536,7 @@ namespace Trakt.ScheduledTasks
             }
         }
 
-        private async Task SendEpisodeCollectionUpdates(
-            bool collected,
+        private async Task SendEpisodeCollectionAdds(
             TraktUser traktUser,
             List<Episode> collectedEpisodes,
             ISplittableProgress<double> progress,
@@ -432,7 +553,45 @@ namespace Trakt.ScheduledTasks
                                 collectedEpisodes,
                                 traktUser,
                                 cancellationToken,
-                                collected ? EventType.Add : EventType.Remove).ConfigureAwait(false);
+                                EventType.Add).ConfigureAwait(false);
+                    if (dataContracts != null)
+                    {
+                        foreach (var traktSyncResponse in dataContracts)
+                        {
+                            LogTraktResponseDataContract(traktSyncResponse);
+                        }
+                    }
+                }
+                catch (ArgumentNullException argNullEx)
+                {
+                    _logger.ErrorException("ArgumentNullException handled sending episodes to trakt.tv", argNullEx);
+                }
+                catch (Exception e)
+                {
+                    _logger.ErrorException("Exception handled sending episodes to trakt.tv", e);
+                }
+
+                progress.Report(100);
+            }
+        }
+
+        private async Task SendEpisodeCollectionRemovals(
+            TraktUser traktUser,
+            List<Api.DataContracts.Sync.Collection.TraktShowCollected> uncollectedEpisodes,
+            ISplittableProgress<double> progress,
+            CancellationToken cancellationToken)
+        {
+            _logger.Info("Episodes to remove from Collection: " + uncollectedEpisodes.Count);
+            if (uncollectedEpisodes.Count > 0)
+            {
+                try
+                {
+                    var dataContracts =
+                        await
+                            _traktApi.SendLibraryRemovalsAsync(
+                                uncollectedEpisodes,
+                                traktUser,
+                                cancellationToken).ConfigureAwait(false);
                     if (dataContracts != null)
                     {
                         foreach (var traktSyncResponse in dataContracts)
@@ -463,28 +622,47 @@ namespace Trakt.ScheduledTasks
 
         private void LogTraktResponseDataContract(TraktSyncResponse dataContract)
         {
-            _logger.Debug("TraktResponse Added Movies: " + dataContract.added.movies);
-            _logger.Debug("TraktResponse Added Shows: " + dataContract.added.shows);
-            _logger.Debug("TraktResponse Added Seasons: " + dataContract.added.seasons);
-            _logger.Debug("TraktResponse Added Episodes: " + dataContract.added.episodes);
-            foreach (var traktMovie in dataContract.not_found.movies)
+            try
             {
-                _logger.Error("TraktResponse not Found:" + _jsonSerializer.SerializeToString(traktMovie));
-            }
+                _logger.Debug("TraktResponse Added Movies: " + dataContract?.added?.movies);
+                _logger.Debug("TraktResponse Added Shows: " + dataContract?.added?.shows);
+                _logger.Debug("TraktResponse Added Seasons: " + dataContract?.added?.seasons);
+                _logger.Debug("TraktResponse Added Episodes: " + dataContract?.added?.episodes);
 
-            foreach (var traktShow in dataContract.not_found.shows)
-            {
-                _logger.Error("TraktResponse not Found:" + _jsonSerializer.SerializeToString(traktShow));
-            }
+                _logger.Debug("TraktResponse Deleted Movies: " + dataContract?.deleted?.movies);
+                _logger.Debug("TraktResponse Deleted Shows: " + dataContract?.deleted?.shows);
+                _logger.Debug("TraktResponse Deleted Seasons: " + dataContract?.deleted?.seasons);
+                _logger.Debug("TraktResponse Deleted Episodes: " + dataContract?.deleted?.episodes);
 
-            foreach (var traktSeason in dataContract.not_found.seasons)
-            {
-                _logger.Error("TraktResponse not Found:" + _jsonSerializer.SerializeToString(traktSeason));
-            }
+                _logger.Debug("TraktResponse Existing Movies: " + dataContract?.existing?.movies);
+                _logger.Debug("TraktResponse Existing Shows: " + dataContract?.existing?.shows);
+                _logger.Debug("TraktResponse Existing Seasons: " + dataContract?.existing?.seasons);
+                _logger.Debug("TraktResponse Existing Episodes: " + dataContract?.existing?.episodes);
 
-            foreach (var traktEpisode in dataContract.not_found.episodes)
+                foreach (var traktMovie in dataContract.not_found.movies)
+                {
+                    _logger.Error("TraktResponse not Found:" + _jsonSerializer.SerializeToString(traktMovie));
+                }
+
+                foreach (var traktShow in dataContract.not_found.shows)
+                {
+                    _logger.Error("TraktResponse not Found:" + _jsonSerializer.SerializeToString(traktShow));
+                }
+
+                foreach (var traktSeason in dataContract.not_found.seasons)
+                {
+                    _logger.Error("TraktResponse not Found:" + _jsonSerializer.SerializeToString(traktSeason));
+                }
+
+                foreach (var traktEpisode in dataContract.not_found.episodes)
+                {
+                    _logger.Error("TraktResponse not Found:" + _jsonSerializer.SerializeToString(traktEpisode));
+                }
+            }
+            catch (NullReferenceException e)
             {
-                _logger.Error("TraktResponse not Found:" + _jsonSerializer.SerializeToString(traktEpisode));
+                _logger.ErrorException("Couldn't decode trakt response", e);
+                _logger.Debug("Response object: {0}", _jsonSerializer.SerializeToString(dataContract));
             }
         }
     }
