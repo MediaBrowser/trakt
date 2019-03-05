@@ -76,23 +76,29 @@ namespace Trakt.Api
                 return false;
             }
 
-            var movie = item as Movie;
-
-            if (movie != null)
+            if (item is Movie movie)
             {
                 return !string.IsNullOrEmpty(movie.GetProviderId(MetadataProviders.Imdb)) ||
                     !string.IsNullOrEmpty(movie.GetProviderId(MetadataProviders.Tmdb));
             }
 
-            var episode = item as Episode;
-
-            if (episode != null && episode.Series != null && !episode.IsMissingEpisode && (episode.IndexNumber.HasValue || !string.IsNullOrEmpty(episode.GetProviderId(MetadataProviders.Tvdb))))
+            if (item is Episode episode && episode.Series != null && !episode.IsMissingEpisode && (episode.IndexNumber.HasValue || !string.IsNullOrEmpty(episode.GetProviderId(MetadataProviders.Tvdb))))
             {
                 var series = episode.Series;
 
                 return !string.IsNullOrEmpty(series.GetProviderId(MetadataProviders.Imdb)) ||
                     !string.IsNullOrEmpty(series.GetProviderId(MetadataProviders.Tvdb));
             }
+
+            if (item is Series show)
+            {
+
+                return !string.IsNullOrEmpty(show.GetProviderId(MetadataProviders.Imdb)) ||
+                       !string.IsNullOrEmpty(show.GetProviderId(MetadataProviders.Tvdb)) ||
+                       !string.IsNullOrEmpty(show.GetProviderId(MetadataProviders.Tmdb)) ||
+                       !string.IsNullOrEmpty(show.GetProviderId(MetadataProviders.TvRage));
+            }
+
 
             return false;
         }
@@ -238,6 +244,38 @@ namespace Trakt.Api
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <param name="eventType"></param>
         /// <returns>Task{TraktResponseDataContract}.</returns>
+        public async Task<IEnumerable<TraktSyncResponse>> SendCollectionRemovalsAsync(List<TraktMovie> movies, TraktUser traktUser,
+            CancellationToken cancellationToken)
+        {
+            if (movies == null)
+                throw new ArgumentNullException("movies");
+            if (traktUser == null)
+                throw new ArgumentNullException("traktUser");
+
+            var responses = new List<TraktSyncResponse>();
+            var chunks = movies.ToChunks(100);
+            foreach (var chunk in chunks)
+            {
+                var data = new TraktSyncUncollected
+                {
+                    movies = chunk.ToList()
+                };
+                using (var response = await PostToTrakt(TraktUris.SyncCollectionRemove, data, cancellationToken, traktUser).ConfigureAwait(false))
+                {
+                    responses.Add(_jsonSerializer.DeserializeFromStream<TraktSyncResponse>(response));
+                }
+            }
+            return responses;
+        }
+
+        /// <summary>
+        /// Add or remove a list of movies to/from the users trakt.tv library
+        /// </summary>
+        /// <param name="movies">The movies to add</param>
+        /// <param name="traktUser">The user who's library is being updated</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <param name="eventType"></param>
+        /// <returns>Task{TraktResponseDataContract}.</returns>
         public async Task<IEnumerable<TraktSyncResponse>> SendLibraryUpdateAsync(List<Movie> movies, TraktUser traktUser,
             CancellationToken cancellationToken, EventType eventType)
         {
@@ -289,7 +327,33 @@ namespace Trakt.Api
             return responses;
         }
 
+        public async Task<List<TraktSyncResponse>> SendLibraryRemovalsAsync(List<TraktShowCollected> uncollectedEpisodes, TraktUser traktUser, CancellationToken cancellationToken)
+        {
+            if (uncollectedEpisodes == null)
+                throw new ArgumentNullException(nameof(uncollectedEpisodes));
 
+            if (traktUser == null)
+                throw new ArgumentNullException(nameof(traktUser));
+
+            var responses = new List<TraktSyncResponse>();
+            var chunks = uncollectedEpisodes.ToChunks(100);
+            foreach (var chunk in chunks)
+            {
+                var data = new TraktSyncUncollected
+                {
+                    shows = chunk.ToList()
+                };
+
+                var url = TraktUris.SyncCollectionRemove;
+
+                using (var response = await PostToTrakt(url, data, cancellationToken, traktUser).ConfigureAwait(false))
+                {
+                    responses.Add(_jsonSerializer.DeserializeFromStream<TraktSyncResponse>(response));
+                }
+            }
+
+            return responses;
+        }
 
         /// <summary>
         /// Add or remove a list of Episodes to/from the users trakt.tv library
@@ -1004,7 +1068,7 @@ namespace Trakt.Api
             TraktUser traktUser)
         {
             var requestContent = data == null ? string.Empty : _jsonSerializer.SerializeToString(data);
-            if (traktUser != null && traktUser.ExtraLogging) _logger.Debug(requestContent);
+            if (traktUser != null && traktUser.ExtraLogging) _logger.Debug("POST " + requestContent);
             var options = GetHttpRequestOptions();
             options.Url = url;
             options.CancellationToken = cancellationToken;

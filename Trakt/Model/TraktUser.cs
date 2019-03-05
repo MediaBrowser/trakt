@@ -18,6 +18,8 @@ namespace Trakt.Model
 
         public bool PostWatchedHistory { get; set; }
 
+        public bool SyncCollection { get; set; }
+
         public bool ExtraLogging { get; set; }
 
         public bool ExportMediaInfo { get; set; }
