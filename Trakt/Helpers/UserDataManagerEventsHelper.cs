@@ -6,7 +6,6 @@ using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Logging;
-using MediaBrowser.Model.Threading;
 using Trakt.Api;
 using Trakt.Model;
 
@@ -21,20 +20,18 @@ namespace Trakt.Helpers
         private List<UserDataPackage> _userDataPackages;
         private readonly ILogger _logger;
         private readonly TraktApi _traktApi;
-        private ITimer _timer;
-        private readonly ITimerFactory _timerFactory;
+        private Timer _timer;
 
         /// <summary>
         /// 
         /// </summary>
         /// <param name="logger"></param>
         /// <param name="traktApi"></param>
-        public UserDataManagerEventsHelper(ILogger logger, TraktApi traktApi, ITimerFactory timerFactory)
+        public UserDataManagerEventsHelper(ILogger logger, TraktApi traktApi)
         {
             _userDataPackages = new List<UserDataPackage>();
             _logger = logger;
             _traktApi = traktApi;
-            _timerFactory = timerFactory;
         }
 
 
@@ -57,7 +54,7 @@ namespace Trakt.Helpers
 
             if (_timer == null)
             {
-                _timer = _timerFactory.Create(OnTimerCallback, null, TimeSpan.FromMilliseconds(5000),
+                _timer = new Timer(OnTimerCallback, null, TimeSpan.FromMilliseconds(5000),
                     Timeout.InfiniteTimeSpan);
             }
             else
