@@ -71,7 +71,7 @@ namespace Trakt.Api
                 return false;
             }
 
-            if (traktUser.LocationsExcluded != null && traktUser.LocationsExcluded.Any(s => _fileSystem.ContainsSubPath(s, item.Path)))
+            if (traktUser.LocationsExcluded != null && traktUser.LocationsExcluded.Any(s => _fileSystem.ContainsSubPath(s.AsSpan(), item.Path.AsSpan())))
             {
                 return false;
             }
