@@ -121,11 +121,11 @@
                             // Default this to an empty array so the rendering code doesn't have to worry about it
                             currentUserConfig.LocationsExcluded = currentUserConfig.LocationsExcluded || [];
                             $('#txtTraktPIN', page).val(currentUserConfig.PIN); 
-                            $('#chkSkipUnwatchedImportFromTrakt', page).checked(currentUserConfig.SkipUnwatchedImportFromTrakt).checkboxradio("refresh");
-                            $('#chkPostWatchedHistory', page).checked(currentUserConfig.PostWatchedHistory).checkboxradio("refresh");
-                            $('#chkSyncCollection', page).checked(currentUserConfig.SyncCollection).checkboxradio("refresh");
-                            $('#chkExtraLogging', page).checked(currentUserConfig.ExtraLogging).checkboxradio("refresh");
-                            $('#chkExportMediaInfo', page).checked(currentUserConfig.ExportMediaInfo).checkboxradio("refresh");
+                            page.querySelector('#chkSkipUnwatchedImportFromTrakt').checked = currentUserConfig.SkipUnwatchedImportFromTrakt;
+                            page.querySelector('#chkPostWatchedHistory').checked = currentUserConfig.PostWatchedHistory;
+                            page.querySelector('#chkSyncCollection').checked = currentUserConfig.SyncCollection;
+                            page.querySelector('#chkExtraLogging').checked = currentUserConfig.ExtraLogging;
+                            page.querySelector('#chkExportMediaInfo').checked = currentUserConfig.ExportMediaInfo;
                             // List the folders the user can access
                             ApiClient.getVirtualFolders(userId).then(function (result) {
                                 TraktConfigurationPage.loadFolders(currentUserConfig, result);
@@ -139,7 +139,7 @@
                             var user = users[i];
                             html += '<option value="' + user.Id + '">' + user.Name + '</option>';
                         }
-                        $('#selectUser', $.mobile.activePage).html(html).selectmenu("refresh");
+                        $('#selectUser', $.mobile.activePage).html(html);
                     },
                     loadFolders: function (currentUserConfig, virtualFolders) {
                         var page = $.mobile.activePage;
@@ -182,11 +182,11 @@
                             currentUserConfig = {};
                             config.TraktUsers.push(currentUserConfig);
                         }
-                        currentUserConfig.SkipUnwatchedImportFromTrakt = $('#chkSkipUnwatchedImportFromTrakt', page).checked();
-                        currentUserConfig.PostWatchedHistory = $('#chkPostWatchedHistory', page).checked();
-                        currentUserConfig.SyncCollection = $('#chkSyncCollection', page).checked();
-                        currentUserConfig.ExtraLogging = $('#chkExtraLogging', page).checked();
-                        currentUserConfig.ExportMediaInfo = $('#chkExportMediaInfo', page).checked();
+                        currentUserConfig.SkipUnwatchedImportFromTrakt = page.querySelector('#chkSkipUnwatchedImportFromTrakt').checked;
+                        currentUserConfig.PostWatchedHistory = page.querySelector('#chkPostWatchedHistory').checked;
+                        currentUserConfig.SyncCollection = page.querySelector('#chkSyncCollection').checked;
+                        currentUserConfig.ExtraLogging = page.querySelector('#chkExtraLogging').checked;
+                        currentUserConfig.ExportMediaInfo = page.querySelector('#chkExportMediaInfo').checked;
                         currentUserConfig.PIN = $('#txtTraktPIN', page).val();
                         currentUserConfig.LinkedMbUserId = currentUserId;
                         currentUserConfig.LocationsExcluded = $('.chkTraktLocation:checked', page).map(function () {
