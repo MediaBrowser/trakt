@@ -14,6 +14,8 @@ using System;
 using System.Linq;
 using Trakt.Api;
 using Trakt.Helpers;
+using System.Collections.Generic;
+using System.Threading;
 
 namespace Trakt
 {
@@ -164,8 +166,8 @@ namespace Trakt
                 _logger.Debug(traktUser.LinkedMbUserId + " appears to be monitoring " + e.Item.Path);
 
                 var video = e.Item as Video;
-                var progressPercent = video.RunTimeTicks.HasValue && video.RunTimeTicks != 0 ? 
-                    (float)(e.PlaybackPositionTicks??0) / video.RunTimeTicks.Value * 100.0f : 0.0f;
+                var progressPercent = video.RunTimeTicks.HasValue && video.RunTimeTicks != 0 ?
+                    (float)(e.PlaybackPositionTicks ?? 0) / video.RunTimeTicks.Value * 100.0f : 0.0f;
 
                 try
                 {
@@ -245,12 +247,14 @@ namespace Trakt
                             await
                                 _traktApi.SendMovieStatusUpdateAsync(video as Movie, MediaStatus.Stop, traktUser, 100).
                                     ConfigureAwait(false);
+                            await _traktApi.SendMoviePlaystateUpdates(new List<Movie> { video as Movie }, traktUser, true, true, CancellationToken.None).ConfigureAwait(false);
                         }
                         else if (video is Episode)
                         {
                             await
                                 _traktApi.SendEpisodeStatusUpdateAsync(video as Episode, MediaStatus.Stop, traktUser, 100)
                                     .ConfigureAwait(false);
+                            await _traktApi.SendEpisodePlaystateUpdates(new List<Episode> { video as Episode }, traktUser, true, true, CancellationToken.None).ConfigureAwait(false);
                         }
                     }
                     catch (Exception ex)

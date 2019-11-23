@@ -25,6 +25,7 @@ namespace Trakt.ScheduledTasks
     using Trakt.Api.DataContracts.BaseModel;
     using Trakt.Api.DataContracts.Users.Collection;
     using Trakt.Api.DataContracts.Users.Watched;
+    using Trakt.Api.DataContracts.Users.Playback;
     using Trakt.Helpers;
     using MediaBrowser.Model.IO;
 
@@ -101,6 +102,8 @@ namespace Trakt.ScheduledTasks
 
             List<TraktMovieWatched> traktWatchedMovies;
             List<TraktShowWatched> traktWatchedShows;
+            List<TraktPlaybackMovie> traktPlaybackMovies;
+            List<TraktPlaybackEpisode> traktPlaybackEpisodes;
 
             try
             {
@@ -111,6 +114,8 @@ namespace Trakt.ScheduledTasks
                  */
                 traktWatchedMovies = await _traktApi.SendGetAllWatchedMoviesRequest(traktUser).ConfigureAwait(false);
                 traktWatchedShows = await _traktApi.SendGetWatchedShowsRequest(traktUser).ConfigureAwait(false);
+                traktPlaybackMovies = await _traktApi.SendGetPlaybackMoviesRequest(traktUser).ConfigureAwait(false);
+                traktPlaybackEpisodes = await _traktApi.SendGetPlaybackShowsRequest(traktUser).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -120,6 +125,8 @@ namespace Trakt.ScheduledTasks
 
             _logger.Info("Trakt.tv watched Movies count = " + traktWatchedMovies.Count);
             _logger.Info("Trakt.tv watched Shows count = " + traktWatchedShows.Count);
+            _logger.Info("Trakt.tv playback Movies count = " + traktPlaybackMovies.Count);
+            _logger.Info("Trakt.tv playback Shows count = " + traktPlaybackEpisodes.Count);
 
             var mediaItems =
                 _libraryManager.GetItemList(
@@ -127,7 +134,7 @@ namespace Trakt.ScheduledTasks
                         {
                             IncludeItemTypes = new[] { typeof(Movie).Name, typeof(Episode).Name },
                             IsVirtualItem = false,
-                            OrderBy = new []
+                            OrderBy = new[]
                             {
                                 new ValueTuple<string, SortOrder>(ItemSortBy.SeriesSortName, SortOrder.Ascending),
                                 new ValueTuple<string, SortOrder>(ItemSortBy.SortName, SortOrder.Ascending)
@@ -176,6 +183,17 @@ namespace Trakt.ScheduledTasks
                         if (userData.LastPlayedDate != latestPlayed)
                         {
                             userData.LastPlayedDate = latestPlayed;
+                            changed = true;
+                        }
+                    }
+
+                    var playbackMovie = Match.FindMatch(movie, traktPlaybackMovies);
+                    if (playbackMovie != null)
+                    {
+                        var playbackProgress = movie.RunTimeTicks * (playbackMovie.progress / 100);
+                        if (userData.PlaybackPositionTicks != Convert.ToInt64(playbackProgress))
+                        {
+                            userData.PlaybackPositionTicks = Convert.ToInt64(playbackProgress);
                             changed = true;
                         }
                     }
@@ -246,6 +264,17 @@ namespace Trakt.ScheduledTasks
                             {
                                 userData.PlayCount = playcount;
                                 changed = true;
+                            }
+
+                            var playbackEpisode = Match.FindMatch(episode, traktPlaybackEpisodes);
+                            if (playbackEpisode != null)
+                            {
+                                var playbackProgress = episode.RunTimeTicks * (playbackEpisode.progress / 100);
+                                if (userData.PlaybackPositionTicks != Convert.ToInt64(playbackProgress))
+                                {
+                                    userData.PlaybackPositionTicks = Convert.ToInt64(playbackProgress);
+                                    changed = true;
+                                }
                             }
                         }
                         else if (!traktUser.SkipUnwatchedImportFromTrakt)

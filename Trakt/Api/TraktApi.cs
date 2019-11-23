@@ -815,6 +815,32 @@ namespace Trakt.Api
             }
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="traktUser"></param>
+        /// <returns></returns>
+        public async Task<List<DataContracts.Users.Playback.TraktPlaybackMovie>> SendGetPlaybackMoviesRequest(TraktUser traktUser)
+        {
+            using (var response = await GetFromTrakt(TraktUris.PlaybackMovies, traktUser).ConfigureAwait(false))
+            {
+                return _jsonSerializer.DeserializeFromStream<List<DataContracts.Users.Playback.TraktPlaybackMovie>>(response);
+            }
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="traktUser"></param>
+        /// <returns></returns>
+        public async Task<List<DataContracts.Users.Playback.TraktPlaybackEpisode>> SendGetPlaybackShowsRequest(TraktUser traktUser)
+        {
+            using (var response = await GetFromTrakt(TraktUris.PlaybackShows, traktUser).ConfigureAwait(false))
+            {
+                return _jsonSerializer.DeserializeFromStream<List<DataContracts.Users.Playback.TraktPlaybackEpisode>>(response);
+            }
+        }
+
         private int? ParseId(string value)
         {
             int parsed;
@@ -860,7 +886,7 @@ namespace Trakt.Api
                                 : ParseId(m.GetProviderId(MetadataProviders.Tmdb))
                     },
                     year = m.ProductionYear,
-                    watched_at = lastPlayedDate.HasValue ? lastPlayedDate.Value.ToISO8601() : null
+                    watched_at = lastPlayedDate.HasValue ? lastPlayedDate.Value.ToISO8601() : DateTimeOffset.Now.ToISO8601()
                 };
             }).ToList();
             var chunks = moviesPayload.ToChunks(100).ToList();
@@ -936,7 +962,7 @@ namespace Trakt.Api
                         {
                             tvdb = int.Parse(tvDbId)
                         },
-                        watched_at = lastPlayedDate.HasValue ? lastPlayedDate.Value.ToISO8601() : null
+                        watched_at = lastPlayedDate.HasValue ? lastPlayedDate.Value.ToISO8601() : DateTimeOffset.Now.ToISO8601()
                     });
                 }
                 else if (episode.IndexNumber != null)
@@ -974,7 +1000,7 @@ namespace Trakt.Api
                         syncSeason.episodes.Add(new TraktEpisodeWatched
                         {
                             number = number,
-                            watched_at = lastPlayedDate.HasValue ? lastPlayedDate.Value.ToISO8601() : null
+                            watched_at = lastPlayedDate.HasValue ? lastPlayedDate.Value.ToISO8601() : DateTimeOffset.Now.ToISO8601()
                         });
                     }
                 }
@@ -1098,7 +1124,7 @@ namespace Trakt.Api
             {
                 return await function().ConfigureAwait(false);
             }
-            catch{}
+            catch { }
             await Task.Delay(500).ConfigureAwait(false);
             try
             {

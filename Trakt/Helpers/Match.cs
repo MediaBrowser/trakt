@@ -8,6 +8,7 @@ using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Model.Entities;
 using Trakt.Api.DataContracts.BaseModel;
 using Trakt.Api.DataContracts.Users.Collection;
+using Trakt.Api.DataContracts.Users.Playback;
 using Trakt.Api.DataContracts.Users.Watched;
 
 namespace Trakt.Helpers
@@ -19,9 +20,14 @@ namespace Trakt.Helpers
             return results.FirstOrDefault(i => IsMatch(item, i.show));
         }
 
+        public static TraktPlaybackEpisode FindMatch(Episode item, IEnumerable<TraktPlaybackEpisode> results)
+        {
+            return results.FirstOrDefault(i => IsMatch(item, i.episode));
+        }
+
         public static Series FindMatch(TraktShow item, IEnumerable<Series> results)
         {
-            return results.FirstOrDefault(i => IsMatch(i,item));
+            return results.FirstOrDefault(i => IsMatch(i, item));
         }
 
         public static TraktShowCollected FindMatch(Series item, IEnumerable<TraktShowCollected> results)
@@ -34,6 +40,11 @@ namespace Trakt.Helpers
             return results.FirstOrDefault(i => IsMatch(item, i.movie));
         }
 
+        public static TraktPlaybackMovie FindMatch(BaseItem item, IEnumerable<TraktPlaybackMovie> results)
+        {
+            return results.FirstOrDefault(i => IsMatch(item, i.movie));
+        }
+
         public static IEnumerable<TraktMovieCollected> FindMatches(BaseItem item, IEnumerable<TraktMovieCollected> results)
         {
             return results.Where(i => IsMatch(item, i.movie)).ToList();
@@ -41,9 +52,9 @@ namespace Trakt.Helpers
 
         public static IEnumerable<BaseItem> FindMatches(TraktMovieCollected item, IEnumerable<BaseItem> results)
         {
-            return results.Where(i => IsMatch(i,item.movie)).ToList();
+            return results.Where(i => IsMatch(i, item.movie)).ToList();
         }
-        
+
         public static bool IsMatch(BaseItem item, TraktMovie movie)
         {
             var imdb = item.GetProviderId(MetadataProviders.Imdb);
@@ -76,7 +87,17 @@ namespace Trakt.Helpers
             MatchIds(item.GetProviderId(MetadataProviders.Imdb), show.ids.imdb) ||
             MatchIds(item.GetProviderId(MetadataProviders.Tmdb), show.ids.tmdb) ||
             MatchIds(item.GetProviderId(MetadataProviders.TvRage), show.ids.tvrage);
-            
+
+        }
+
+        public static bool IsMatch(BaseItem item, TraktEpisode episode)
+        {
+            return
+            MatchIds(item.GetProviderId(MetadataProviders.Tvdb), episode.ids.tvdb) ||
+            MatchIds(item.GetProviderId(MetadataProviders.Imdb), episode.ids.imdb) ||
+            MatchIds(item.GetProviderId(MetadataProviders.Tmdb), episode.ids.tmdb) ||
+            MatchIds(item.GetProviderId(MetadataProviders.TvRage), episode.ids.tvrage);
+
         }
 
         public static bool MatchIds(string a, string b)
@@ -86,8 +107,8 @@ namespace Trakt.Helpers
 
         public static bool MatchIds(string a, int? b)
         {
-            return !string.IsNullOrWhiteSpace(a) 
-                   && b.HasValue 
+            return !string.IsNullOrWhiteSpace(a)
+                   && b.HasValue
                    && string.Equals(a, b.Value.ToString(), StringComparison.OrdinalIgnoreCase);
         }
     }

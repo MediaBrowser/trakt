@@ -26,6 +26,8 @@
         public const string WatchedShows = @"https://api.trakt.tv/sync/watched/shows";
         public const string CollectedMovies = @"https://api.trakt.tv/sync/collection/movies?extended=metadata";
         public const string CollectedShows = @"https://api.trakt.tv/sync/collection/shows?extended=metadata";
+        public const string PlaybackMovies = @"https://api.trakt.tv/sync/playback/movies";
+        public const string PlaybackShows = @"https://api.trakt.tv/sync/playback/episodes";
 
         // Recommendations
         public const string RecommendationsMovies = @"https://api.trakt.tv/recommendations/movies";
