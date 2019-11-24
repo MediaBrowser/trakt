@@ -126,7 +126,7 @@ namespace Trakt.ScheduledTasks
             _logger.Info("Trakt.tv watched Movies count = " + traktWatchedMovies.Count);
             _logger.Info("Trakt.tv watched Shows count = " + traktWatchedShows.Count);
             _logger.Info("Trakt.tv playback Movies count = " + traktPlaybackMovies.Count);
-            _logger.Info("Trakt.tv playback Shows count = " + traktPlaybackEpisodes.Count);
+            _logger.Info("Trakt.tv playback Episodes count = " + traktPlaybackEpisodes.Count);
 
             var mediaItems =
                 _libraryManager.GetItemList(
@@ -187,17 +187,6 @@ namespace Trakt.ScheduledTasks
                         }
                     }
 
-                    var playbackMovie = Match.FindMatch(movie, traktPlaybackMovies);
-                    if (playbackMovie != null)
-                    {
-                        var playbackProgress = movie.RunTimeTicks * (playbackMovie.progress / 100);
-                        if (userData.PlaybackPositionTicks != Convert.ToInt64(playbackProgress))
-                        {
-                            userData.PlaybackPositionTicks = Convert.ToInt64(playbackProgress);
-                            changed = true;
-                        }
-                    }
-
                     // Only process if there's a change
                     if (changed)
                     {
@@ -212,6 +201,24 @@ namespace Trakt.ScheduledTasks
                 else
                 {
                     //_logger.Info("Failed to match " + movie.Name);
+                }
+
+                var playbackMovie = Match.FindMatch(movie, traktPlaybackMovies);
+                if (playbackMovie != null)
+                {
+                    _logger.Debug("Movie is in Playback list " + movie.Name);
+                    var userData = _userDataManager.GetUserData(user.InternalId, movie);
+                    var playbackProgress = movie.RunTimeTicks * (playbackMovie.progress / 100);
+                    if (userData.PlaybackPositionTicks != Convert.ToInt64(playbackProgress))
+                    {
+                        userData.PlaybackPositionTicks = Convert.ToInt64(playbackProgress);
+                        _userDataManager.SaveUserData(
+                               user.InternalId,
+                               movie,
+                               userData,
+                               UserDataSaveReason.PlaybackProgress,
+                               cancellationToken);
+                    }
                 }
 
                 // purely for progress reporting
@@ -265,17 +272,6 @@ namespace Trakt.ScheduledTasks
                                 userData.PlayCount = playcount;
                                 changed = true;
                             }
-
-                            var playbackEpisode = Match.FindMatch(episode, traktPlaybackEpisodes);
-                            if (playbackEpisode != null)
-                            {
-                                var playbackProgress = episode.RunTimeTicks * (playbackEpisode.progress / 100);
-                                if (userData.PlaybackPositionTicks != Convert.ToInt64(playbackProgress))
-                                {
-                                    userData.PlaybackPositionTicks = Convert.ToInt64(playbackProgress);
-                                    changed = true;
-                                }
-                            }
                         }
                         else if (!traktUser.SkipUnwatchedImportFromTrakt)
                         {
@@ -305,6 +301,24 @@ namespace Trakt.ScheduledTasks
                 else
                 {
                     _logger.Debug("No Show match in Watched shows list " + GetVerboseEpisodeData(episode));
+                }
+
+                var playbackEpisode = Match.FindMatch(episode, traktPlaybackEpisodes);
+                if (playbackEpisode != null)
+                {
+                    _logger.Debug("Episode is in Playback list " + GetVerboseEpisodeData(episode));
+                    var userData = _userDataManager.GetUserData(user, episode);
+                    var playbackProgress = episode.RunTimeTicks * (playbackEpisode.progress / 100);
+                    if (userData.PlaybackPositionTicks != Convert.ToInt64(playbackProgress))
+                    {
+                        userData.PlaybackPositionTicks = Convert.ToInt64(playbackProgress);
+                        _userDataManager.SaveUserData(
+                                user.InternalId,
+                                episode,
+                                userData,
+                                UserDataSaveReason.PlaybackProgress,
+                                cancellationToken);
+                    }
                 }
 
                 // purely for progress reporting
