@@ -154,7 +154,7 @@ namespace Trakt.ScheduledTasks
                 {
                     _logger.Debug("Movie is in Watched list " + movie.Name);
 
-                    var userData = _userDataManager.GetUserData(user.InternalId, movie);
+                    var userData = _userDataManager.GetUserData(user, movie);
                     bool changed = false;
 
                     // set movie as watched
@@ -207,18 +207,8 @@ namespace Trakt.ScheduledTasks
                 if (playbackMovie != null)
                 {
                     _logger.Debug("Movie is in Playback list " + movie.Name);
-                    var userData = _userDataManager.GetUserData(user.InternalId, movie);
-                    var playbackProgress = movie.RunTimeTicks * (playbackMovie.progress / 100);
-                    if (userData.PlaybackPositionTicks != Convert.ToInt64(playbackProgress))
-                    {
-                        userData.PlaybackPositionTicks = Convert.ToInt64(playbackProgress);
-                        _userDataManager.SaveUserData(
-                               user.InternalId,
-                               movie,
-                               userData,
-                               UserDataSaveReason.PlaybackProgress,
-                               cancellationToken);
-                    }
+
+                    UpdatePositionTicksFromTrakt(movie, user, playbackMovie.progress);
                 }
 
                 // purely for progress reporting
@@ -307,18 +297,8 @@ namespace Trakt.ScheduledTasks
                 if (playbackEpisode != null)
                 {
                     _logger.Debug("Episode is in Playback list " + GetVerboseEpisodeData(episode));
-                    var userData = _userDataManager.GetUserData(user, episode);
-                    var playbackProgress = episode.RunTimeTicks * (playbackEpisode.progress / 100);
-                    if (userData.PlaybackPositionTicks != Convert.ToInt64(playbackProgress))
-                    {
-                        userData.PlaybackPositionTicks = Convert.ToInt64(playbackProgress);
-                        _userDataManager.SaveUserData(
-                                user.InternalId,
-                                episode,
-                                userData,
-                                UserDataSaveReason.PlaybackProgress,
-                                cancellationToken);
-                    }
+
+                    UpdatePositionTicksFromTrakt(episode, user, playbackEpisode.progress);
                 }
 
                 // purely for progress reporting
@@ -327,6 +307,33 @@ namespace Trakt.ScheduledTasks
             }
 
             // _logger.Info(syncItemFailures + " items not parsed");
+        }
+
+        private void UpdatePositionTicksFromTrakt(BaseItem item, User user, double progress)
+        {
+            var runtimeTicks = item.RunTimeTicks;
+
+            // Not much we can do here? 
+            if (!runtimeTicks.HasValue)
+            {
+                return;
+            }
+
+            var userData = _userDataManager.GetUserData(user, item);
+
+            var playbackPositionTicks = Convert.ToInt64(runtimeTicks.Value * (progress / 100));
+
+            if (userData.PlaybackPositionTicks != playbackPositionTicks)
+            {
+                _userDataManager.UpdatePlayState(item, userData, playbackPositionTicks);
+
+                _userDataManager.SaveUserData(
+                       user,
+                       item,
+                       userData,
+                       UserDataSaveReason.PlaybackProgress,
+                       CancellationToken.None);
+            }
         }
 
         private static string GetVerboseEpisodeData(Episode episode)
