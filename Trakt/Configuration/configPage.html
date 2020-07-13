@@ -59,6 +59,15 @@
                     </div>
                     <div class="checkboxContainer checkboxContainer-withDescription">
                         <label>
+                            <input is="emby-checkbox" type="checkbox" id="chkDontRemoveFromCollection" name="chkDontRemoveFromCollection" />
+                            <span>Don't Remove From Collection</span>
+                        </label>
+                        <div class="fieldDescription checkboxFieldDescription">
+                            Don't remove the item in the Trakt Collection when removed from the local library.
+                        </div>
+                    </div>
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label>
                             <input is="emby-checkbox" type="checkbox" id="chkExtraLogging" name="chkExtraLogging" />
                             <span>Enable debug logging</span>
                         </label>
@@ -120,10 +129,11 @@
                             }
                             // Default this to an empty array so the rendering code doesn't have to worry about it
                             currentUserConfig.LocationsExcluded = currentUserConfig.LocationsExcluded || [];
-                            $('#txtTraktPIN', page).val(currentUserConfig.PIN); 
+                            $('#txtTraktPIN', page).val(currentUserConfig.PIN);
                             page.querySelector('#chkSkipUnwatchedImportFromTrakt').checked = currentUserConfig.SkipUnwatchedImportFromTrakt;
                             page.querySelector('#chkPostWatchedHistory').checked = currentUserConfig.PostWatchedHistory;
                             page.querySelector('#chkSyncCollection').checked = currentUserConfig.SyncCollection;
+                            page.querySelector('#chkDontRemoveFromCollection').checked = currentUserConfig.DontRemoveFromCollection;
                             page.querySelector('#chkExtraLogging').checked = currentUserConfig.ExtraLogging;
                             page.querySelector('#chkExportMediaInfo').checked = currentUserConfig.ExportMediaInfo;
                             // List the folders the user can access
@@ -185,6 +195,7 @@
                         currentUserConfig.SkipUnwatchedImportFromTrakt = page.querySelector('#chkSkipUnwatchedImportFromTrakt').checked;
                         currentUserConfig.PostWatchedHistory = page.querySelector('#chkPostWatchedHistory').checked;
                         currentUserConfig.SyncCollection = page.querySelector('#chkSyncCollection').checked;
+                        currentUserConfig.DontRemoveFromCollection = page.querySelector('#chkDontRemoveFromCollection').checked;
                         currentUserConfig.ExtraLogging = page.querySelector('#chkExtraLogging').checked;
                         currentUserConfig.ExportMediaInfo = page.querySelector('#chkExportMediaInfo').checked;
                         currentUserConfig.PIN = $('#txtTraktPIN', page).val();
