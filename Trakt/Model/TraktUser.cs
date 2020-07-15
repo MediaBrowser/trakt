@@ -5,7 +5,7 @@ namespace Trakt.Model
     public class TraktUser
     {
         public String PIN { get; set; }
-        
+
         public String AccessToken { get; set; }
 
         public String RefreshToken { get; set; }
@@ -14,11 +14,13 @@ namespace Trakt.Model
 
         public bool UsesAdvancedRating { get; set; }
 
-        public bool  SkipUnwatchedImportFromTrakt { get; set; }
+        public bool SkipUnwatchedImportFromTrakt { get; set; }
 
         public bool PostWatchedHistory { get; set; }
 
         public bool SyncCollection { get; set; }
+
+        public bool DontRemoveFromCollection { get; set; }
 
         public bool ExtraLogging { get; set; }
 

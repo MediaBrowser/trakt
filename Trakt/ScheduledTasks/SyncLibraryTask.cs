@@ -26,7 +26,7 @@ namespace Trakt.ScheduledTasks
     using Trakt.Model;
 
     /// <summary>
-    /// Task that will Sync each users local library with their respective trakt.tv profiles. This task will only include 
+    /// Task that will Sync each users local library with their respective trakt.tv profiles. This task will only include
     /// titles, watched states will be synced in other tasks.
     /// </summary>
     public class SyncLibraryTask : IScheduledTask
@@ -223,8 +223,11 @@ namespace Trakt.ScheduledTasks
                 // send movies to mark collected
                 await SendMovieCollectionAdds(traktUser, collectedMovies, progress.Split(4), cancellationToken).ConfigureAwait(false);
 
-                // send movies to mark uncollected
-                await SendMovieCollectionRemoves(traktUser, uncollectedMovies, progress.Split(4), cancellationToken).ConfigureAwait(false);
+                if (!traktUser.DontRemoveFromCollection)
+                {
+                    // send movies to mark uncollected
+                    await SendMovieCollectionRemoves(traktUser, uncollectedMovies, progress.Split(4), cancellationToken).ConfigureAwait(false);
+                }
             }
             // send movies to mark watched
             await SendMoviePlaystateUpdates(true, traktUser, playedMovies, progress.Split(4), cancellationToken).ConfigureAwait(false);
@@ -277,6 +280,7 @@ namespace Trakt.ScheduledTasks
             ISplittableProgress<double> progress,
             CancellationToken cancellationToken)
         {
+            _logger.Info("Dont Remove Collections: ", traktUser.DontRemoveFromCollection);
             _logger.Info("Movies to add to collection: " + movies.Count);
             if (movies.Count > 0)
             {
@@ -486,9 +490,6 @@ namespace Trakt.ScheduledTasks
                     _logger.Debug("Could not match {0} to any Emby show, marking for collection removal", _jsonSerializer.SerializeToString(traktShowCollected.show));
                     uncollectedShows.Add(new TraktShowCollected() { ids = traktShowCollected.show.ids, title = traktShowCollected.show.title, year = traktShowCollected.show.year });
                 }
-
-
-
             }
 
             if (traktUser.SyncCollection)
@@ -496,8 +497,11 @@ namespace Trakt.ScheduledTasks
                 await SendEpisodeCollectionAdds(traktUser, collectedEpisodes, progress.Split(4), cancellationToken)
                     .ConfigureAwait(false);
 
-                await SendEpisodeCollectionRemovals(traktUser, uncollectedShows, progress.Split(5), cancellationToken)
-                    .ConfigureAwait(false);
+                if (!traktUser.DontRemoveFromCollection)
+                {
+                    await SendEpisodeCollectionRemovals(traktUser, uncollectedShows, progress.Split(5), cancellationToken)
+                        .ConfigureAwait(false);
+                }
             }
 
             await SendEpisodePlaystateUpdates(true, traktUser, playedEpisodes, progress.Split(4), cancellationToken).ConfigureAwait(false);

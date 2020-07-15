@@ -21,7 +21,7 @@ namespace Trakt.Helpers
         private readonly TraktApi _traktApi;
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <param name="logger"></param>
         /// <param name="traktApi"></param>
@@ -33,7 +33,7 @@ namespace Trakt.Helpers
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <param name="item"></param>
         /// <param name="eventType"></param>
@@ -59,6 +59,11 @@ namespace Trakt.Helpers
             // we need to process the video for each user
             foreach (var user in users.Where(x => _traktApi.CanSync(item, x)))
             {
+                if (eventType == EventType.Remove && user.DontRemoveFromCollection)
+                {
+                    continue;
+                }
+
                 // we have a match, this user is watching the folder the video is in. Add to queue and they
                 // will be processed when the next timer elapsed event fires.
                 var libraryEvent = new LibraryEvent { Item = item, TraktUser = user, EventType = eventType };
@@ -68,7 +73,7 @@ namespace Trakt.Helpers
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         private async void OnQueueTimerCallback(object state)
         {
@@ -194,7 +199,7 @@ namespace Trakt.Helpers
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <param name="events"></param>
         /// <param name="traktUser"></param>
@@ -217,7 +222,7 @@ namespace Trakt.Helpers
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <param name="events"></param>
         /// <param name="traktUser"></param>
