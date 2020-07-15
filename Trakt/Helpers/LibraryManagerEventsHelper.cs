@@ -104,7 +104,7 @@ namespace Trakt.Helpers
                 if (queuedMovieDeletes.Any())
                 {
                     _logger.Info(queuedMovieDeletes.Count + " Movie Deletes to Process");
-                    await ProcessQueuedMovieEvents(queuedMovieDeletes, traktUser, EventType.Remove).ConfigureAwait(false);
+                    await ProcessQueuedMovieEvents(queuedMovieDeletes, traktUser, EventType.Remove, CancellationToken.None).ConfigureAwait(false);
                 }
                 else
                 {
@@ -119,7 +119,7 @@ namespace Trakt.Helpers
                 if (queuedMovieAdds.Any())
                 {
                     _logger.Info(queuedMovieAdds.Count + " Movie Adds to Process");
-                    await ProcessQueuedMovieEvents(queuedMovieAdds, traktUser, EventType.Add).ConfigureAwait(false);
+                    await ProcessQueuedMovieEvents(queuedMovieAdds, traktUser, EventType.Add, CancellationToken.None).ConfigureAwait(false);
                 }
                 else
                 {
@@ -134,7 +134,7 @@ namespace Trakt.Helpers
                 if (queuedEpisodeDeletes.Any())
                 {
                     _logger.Info(queuedEpisodeDeletes.Count + " Episode Deletes to Process");
-                    await ProcessQueuedEpisodeEvents(queuedEpisodeDeletes, traktUser, EventType.Remove).ConfigureAwait(false);
+                    await ProcessQueuedEpisodeEvents(queuedEpisodeDeletes, traktUser, EventType.Remove, CancellationToken.None).ConfigureAwait(false);
                 }
                 else
                 {
@@ -149,7 +149,7 @@ namespace Trakt.Helpers
                 if (queuedEpisodeAdds.Any())
                 {
                     _logger.Info(queuedEpisodeAdds.Count + " Episode Adds to Process");
-                    await ProcessQueuedEpisodeEvents(queuedEpisodeAdds, traktUser, EventType.Add).ConfigureAwait(false);
+                    await ProcessQueuedEpisodeEvents(queuedEpisodeAdds, traktUser, EventType.Add, CancellationToken.None).ConfigureAwait(false);
                 }
                 else
                 {
@@ -164,7 +164,7 @@ namespace Trakt.Helpers
                 if (queuedShowDeletes.Any())
                 {
                     _logger.Info(queuedMovieDeletes.Count + " Series Deletes to Process");
-                    await ProcessQueuedShowEvents(queuedShowDeletes, traktUser, EventType.Remove).ConfigureAwait(false);
+                    await ProcessQueuedShowEvents(queuedShowDeletes, traktUser, EventType.Remove, CancellationToken.None).ConfigureAwait(false);
                 }
                 else
                 {
@@ -176,7 +176,7 @@ namespace Trakt.Helpers
             _queuedEvents.Clear();
         }
 
-        private async Task ProcessQueuedShowEvents(IEnumerable<LibraryEvent> events, TraktUser traktUser, EventType eventType)
+        private async Task ProcessQueuedShowEvents(IEnumerable<LibraryEvent> events, TraktUser traktUser, EventType eventType, CancellationToken cancellationToken)
         {
             var shows = events.Select(lev => (Series)lev.Item)
                 .Where(lev => !string.IsNullOrEmpty(lev.Name) && !string.IsNullOrEmpty(lev.GetProviderId(MetadataProviders.Tvdb)))
@@ -185,7 +185,7 @@ namespace Trakt.Helpers
             {
                 // Should probably not be awaiting this, but it's unlikely a user will be deleting more than one or two shows at a time
                 foreach (var show in shows)
-                    await _traktApi.SendLibraryUpdateAsync(show, traktUser, CancellationToken.None, eventType).ConfigureAwait(false);
+                    await _traktApi.SendLibraryUpdateAsync(show, traktUser, cancellationToken, eventType).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -200,14 +200,14 @@ namespace Trakt.Helpers
         /// <param name="traktUser"></param>
         /// <param name="eventType"></param>
         /// <returns></returns>
-        private async Task ProcessQueuedMovieEvents(IEnumerable<LibraryEvent> events, TraktUser traktUser, EventType eventType)
+        private async Task ProcessQueuedMovieEvents(IEnumerable<LibraryEvent> events, TraktUser traktUser, EventType eventType, CancellationToken cancellationToken)
         {
             var movies = events.Select(lev => (Movie)lev.Item)
                 .Where(lev => !string.IsNullOrEmpty(lev.Name) && !string.IsNullOrEmpty(lev.GetProviderId(MetadataProviders.Imdb)))
                 .ToList();
             try
             {
-                await _traktApi.SendLibraryUpdateAsync(movies, traktUser, CancellationToken.None, eventType).ConfigureAwait(false);
+                await _traktApi.SendLibraryUpdateAsync(movies, traktUser, cancellationToken, eventType).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -223,7 +223,7 @@ namespace Trakt.Helpers
         /// <param name="traktUser"></param>
         /// <param name="eventType"></param>
         /// <returns></returns>
-        private async Task ProcessQueuedEpisodeEvents(IEnumerable<LibraryEvent> events, TraktUser traktUser, EventType eventType)
+        private async Task ProcessQueuedEpisodeEvents(IEnumerable<LibraryEvent> events, TraktUser traktUser, EventType eventType, CancellationToken cancellationToken)
         {
             var episodes = events.Select(lev => (Episode)lev.Item)
                 .Where(lev => lev.Series != null && (!string.IsNullOrEmpty(lev.Series.Name) && !string.IsNullOrEmpty(lev.Series.GetProviderId(MetadataProviders.Tvdb))))
@@ -246,7 +246,7 @@ namespace Trakt.Helpers
                 if (!currentSeriesId.Equals(ep.Series.Id))
                 {
                     // We're starting a new series. Time to send the current one to trakt.tv
-                    await _traktApi.SendLibraryUpdateAsync(payload, traktUser, CancellationToken.None, eventType);
+                    await _traktApi.SendLibraryUpdateAsync(payload, traktUser, cancellationToken, eventType);
 
                     currentSeriesId = ep.Series.Id;
                     payload.Clear();
@@ -259,7 +259,7 @@ namespace Trakt.Helpers
             {
                 try
                 {
-                    await _traktApi.SendLibraryUpdateAsync(payload, traktUser, CancellationToken.None, eventType);
+                    await _traktApi.SendLibraryUpdateAsync(payload, traktUser, cancellationToken, eventType);
                 }
                 catch (Exception ex)
                 {

@@ -10,5 +10,7 @@ namespace Trakt.Api.DataContracts.Users.Playback
         public TraktEpisode episode { get; set; }
 
         public float progress { get; set; }
+
+        public DateTime paused_at { get; set; }
     }
 }

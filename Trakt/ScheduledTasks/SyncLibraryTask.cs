@@ -133,8 +133,8 @@ namespace Trakt.ScheduledTasks
              * In order to sync watched status to trakt.tv we need to know what's been watched on Trakt already. This
              * will stop us from endlessly incrementing the watched values on the site.
              */
-            var traktWatchedMovies = await _traktApi.SendGetAllWatchedMoviesRequest(traktUser).ConfigureAwait(false);
-            var traktCollectedMovies = await _traktApi.SendGetAllCollectedMoviesRequest(traktUser).ConfigureAwait(false);
+            var traktWatchedMovies = await _traktApi.SendGetAllWatchedMoviesRequest(traktUser, cancellationToken).ConfigureAwait(false);
+            var traktCollectedMovies = await _traktApi.SendGetAllCollectedMoviesRequest(traktUser, cancellationToken).ConfigureAwait(false);
             var libraryMovies =
                 _libraryManager.GetItemList(
                         new InternalItemsQuery(user)
@@ -350,8 +350,8 @@ namespace Trakt.ScheduledTasks
             ISplittableProgress<double> progress,
             CancellationToken cancellationToken)
         {
-            var traktWatchedShows = await _traktApi.SendGetWatchedShowsRequest(traktUser).ConfigureAwait(false);
-            var traktCollectedShows = await _traktApi.SendGetCollectedShowsRequest(traktUser).ConfigureAwait(false);
+            var traktWatchedShows = await _traktApi.SendGetWatchedShowsRequest(traktUser, cancellationToken).ConfigureAwait(false);
+            var traktCollectedShows = await _traktApi.SendGetCollectedShowsRequest(traktUser, cancellationToken).ConfigureAwait(false);
             var episodeItems =
                 _libraryManager.GetItemList(
                         new InternalItemsQuery(user)

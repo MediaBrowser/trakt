@@ -109,7 +109,7 @@ namespace Trakt.Helpers
         {
             return !string.IsNullOrWhiteSpace(a)
                    && b.HasValue
-                   && string.Equals(a, b.Value.ToString(), StringComparison.OrdinalIgnoreCase);
+                   && string.Equals(a, b.Value.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase);
         }
     }
 }

@@ -3,6 +3,7 @@ using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Logging;
 using MediaBrowser.Model.Services;
 using Trakt.Helpers;
+using System.Threading;
 
 namespace Trakt.Api
 {
@@ -144,7 +145,7 @@ namespace Trakt.Api
                 return null;
             }
 
-            return _traktApi.SendItemRating(currentItem, request.Rating, UserHelper.GetTraktUser(request.UserId)).Result;
+            return _traktApi.SendItemRating(currentItem, request.Rating, UserHelper.GetTraktUser(request.UserId), CancellationToken.None).Result;
             
         }
 
@@ -174,7 +175,7 @@ namespace Trakt.Api
         /// <returns></returns>
         public object Post(RecommendedMovies request)
         {
-            return _traktApi.SendMovieRecommendationsRequest(UserHelper.GetTraktUser(request.UserId)).Result;
+            return _traktApi.SendMovieRecommendationsRequest(UserHelper.GetTraktUser(request.UserId), CancellationToken.None).Result;
         }
 
 
@@ -186,7 +187,7 @@ namespace Trakt.Api
         /// <returns></returns>
         public object Post(RecommendedShows request)
         {
-            return _traktApi.SendShowRecommendationsRequest(UserHelper.GetTraktUser(request.UserId)).Result;
+            return _traktApi.SendShowRecommendationsRequest(UserHelper.GetTraktUser(request.UserId), CancellationToken.None).Result;
         }
     }
 }
