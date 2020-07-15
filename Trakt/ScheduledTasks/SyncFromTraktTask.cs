@@ -112,10 +112,10 @@ namespace Trakt.ScheduledTasks
                  * It's unfortunate that trakt.tv doesn't explicitly supply a bulk method to determine shows that have not been watched
                  * like they do for movies.
                  */
-                traktWatchedMovies = await _traktApi.SendGetAllWatchedMoviesRequest(traktUser).ConfigureAwait(false);
-                traktWatchedShows = await _traktApi.SendGetWatchedShowsRequest(traktUser).ConfigureAwait(false);
-                traktPlaybackMovies = await _traktApi.SendGetPlaybackMoviesRequest(traktUser).ConfigureAwait(false);
-                traktPlaybackEpisodes = await _traktApi.SendGetPlaybackShowsRequest(traktUser).ConfigureAwait(false);
+                traktWatchedMovies = await _traktApi.SendGetAllWatchedMoviesRequest(traktUser, cancellationToken).ConfigureAwait(false);
+                traktWatchedShows = await _traktApi.SendGetWatchedShowsRequest(traktUser, cancellationToken).ConfigureAwait(false);
+                traktPlaybackMovies = await _traktApi.SendGetPlaybackMoviesRequest(traktUser, cancellationToken).ConfigureAwait(false);
+                traktPlaybackEpisodes = await _traktApi.SendGetPlaybackShowsRequest(traktUser, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -150,13 +150,14 @@ namespace Trakt.ScheduledTasks
                 cancellationToken.ThrowIfCancellationRequested();
                 var matchedMovie = Match.FindMatch(movie, traktWatchedMovies);
 
+                var userData = _userDataManager.GetUserData(user, movie);
+                bool changed = false;
+
                 if (matchedMovie != null)
                 {
                     _logger.Debug("Movie is in Watched list " + movie.Name);
 
-                    var userData = _userDataManager.GetUserData(user, movie);
-                    bool changed = false;
-
+                    
                     // set movie as watched
                     if (!userData.Played)
                     {
@@ -187,20 +188,25 @@ namespace Trakt.ScheduledTasks
                         }
                     }
 
-                    // Only process if there's a change
-                    if (changed)
-                    {
-                        _userDataManager.SaveUserData(
-                               user.InternalId,
-                               movie,
-                               userData,
-                               UserDataSaveReason.Import,
-                               cancellationToken);
-                    }
+                    
                 }
-                else
+                else if (!traktUser.SkipUnwatchedImportFromTrakt)
                 {
-                    //_logger.Info("Failed to match " + movie.Name);
+                    userData.Played = false;
+                    userData.PlayCount = 0;
+                    userData.LastPlayedDate = null;
+                    changed = true;
+                }
+
+                // Only process if there's a change
+                if (changed)
+                {
+                    _userDataManager.SaveUserData(
+                           user.InternalId,
+                           movie,
+                           userData,
+                           UserDataSaveReason.Import,
+                           cancellationToken);
                 }
 
                 var playbackMovie = Match.FindMatch(movie, traktPlaybackMovies);
@@ -208,7 +214,11 @@ namespace Trakt.ScheduledTasks
                 {
                     _logger.Debug("Movie is in Playback list " + movie.Name);
 
-                    UpdatePositionTicksFromTrakt(movie, user, playbackMovie.progress);
+                    UpdatePositionTicksFromTrakt(movie, user, playbackMovie.progress, playbackMovie.paused_at);
+                }
+                else
+                {
+                    UpdatePositionTicksFromTrakt(movie, user, 0, DateTime.Now);
                 }
 
                 // purely for progress reporting
@@ -298,7 +308,11 @@ namespace Trakt.ScheduledTasks
                 {
                     _logger.Debug("Episode is in Playback list " + GetVerboseEpisodeData(episode));
 
-                    UpdatePositionTicksFromTrakt(episode, user, playbackEpisode.progress);
+                    UpdatePositionTicksFromTrakt(episode, user, playbackEpisode.progress, playbackEpisode.paused_at);
+                }
+                else
+                {
+                    UpdatePositionTicksFromTrakt(episode, user, 0, DateTime.Now);
                 }
 
                 // purely for progress reporting
@@ -309,7 +323,7 @@ namespace Trakt.ScheduledTasks
             // _logger.Info(syncItemFailures + " items not parsed");
         }
 
-        private void UpdatePositionTicksFromTrakt(BaseItem item, User user, double progress)
+        private void UpdatePositionTicksFromTrakt(BaseItem item, User user, double progress, DateTime paused_at)
         {
             var runtimeTicks = item.RunTimeTicks;
 
@@ -321,7 +335,13 @@ namespace Trakt.ScheduledTasks
 
             var userData = _userDataManager.GetUserData(user, item);
 
-            var playbackPositionTicks = Convert.ToInt64(runtimeTicks.Value * (progress / 100));
+            long playbackPositionTicks = 0;
+            if (progress > 0)
+            {
+                userData.LastPlayedDate = paused_at;
+
+                playbackPositionTicks = Convert.ToInt64(runtimeTicks.Value * (progress / 100));
+            }
 
             if (userData.PlaybackPositionTicks != playbackPositionTicks)
             {
@@ -340,9 +360,9 @@ namespace Trakt.ScheduledTasks
         {
             var episodeString = new StringBuilder();
             episodeString.Append("Episode: ");
-            episodeString.Append(episode.ParentIndexNumber != null ? episode.ParentIndexNumber.ToString() : "null");
+            episodeString.Append(episode.ParentIndexNumber != null ? episode.ParentIndexNumber.Value.ToString(CultureInfo.InvariantCulture) : "null");
             episodeString.Append("x");
-            episodeString.Append(episode.IndexNumber != null ? episode.IndexNumber.ToString() : "null");
+            episodeString.Append(episode.IndexNumber != null ? episode.IndexNumber.Value.ToString(CultureInfo.InvariantCulture) : "null");
             episodeString.Append(" '").Append(episode.Name).Append("' ");
             episodeString.Append("Series: '");
             episodeString.Append(episode.Series != null

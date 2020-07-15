@@ -83,7 +83,7 @@ namespace Trakt
                     return;
 
                 // We have a user and the item is in a trakt monitored location. 
-                _userDataManagerEventsHelper.ProcessUserDataSaveEventArgs(e, traktUser);
+                _userDataManagerEventsHelper.ProcessUserDataSaveEventArgs(e, traktUser, CancellationToken.None);
             }
         }
 
@@ -175,14 +175,14 @@ namespace Trakt
                     {
                         _logger.Debug("Send movie status update");
                         await
-                            _traktApi.SendMovieStatusUpdateAsync(video as Movie, MediaStatus.Watching, traktUser, progressPercent).
+                            _traktApi.SendMovieStatusUpdateAsync(video as Movie, MediaStatus.Watching, traktUser, progressPercent, CancellationToken.None).
                                       ConfigureAwait(false);
                     }
                     else if (video is Episode)
                     {
                         _logger.Debug("Send episode status update");
                         await
-                            _traktApi.SendEpisodeStatusUpdateAsync(video as Episode, MediaStatus.Watching, traktUser, progressPercent).
+                            _traktApi.SendEpisodeStatusUpdateAsync(video as Episode, MediaStatus.Watching, traktUser, progressPercent, CancellationToken.None).
                                       ConfigureAwait(false);
                     }
                 }
@@ -245,16 +245,14 @@ namespace Trakt
                         if (video is Movie)
                         {
                             await
-                                _traktApi.SendMovieStatusUpdateAsync(video as Movie, MediaStatus.Stop, traktUser, 100).
+                                _traktApi.SendMovieStatusUpdateAsync(video as Movie, MediaStatus.Stop, traktUser, 100, CancellationToken.None).
                                     ConfigureAwait(false);
-                            await _traktApi.SendMoviePlaystateUpdates(new List<Movie> { video as Movie }, traktUser, true, true, CancellationToken.None).ConfigureAwait(false);
                         }
                         else if (video is Episode)
                         {
                             await
-                                _traktApi.SendEpisodeStatusUpdateAsync(video as Episode, MediaStatus.Stop, traktUser, 100)
+                                _traktApi.SendEpisodeStatusUpdateAsync(video as Episode, MediaStatus.Stop, traktUser, 100, CancellationToken.None)
                                     .ConfigureAwait(false);
-                            await _traktApi.SendEpisodePlaystateUpdates(new List<Episode> { video as Episode }, traktUser, true, true, CancellationToken.None).ConfigureAwait(false);
                         }
                     }
                     catch (Exception ex)
@@ -271,11 +269,11 @@ namespace Trakt
 
                     if (video is Movie)
                     {
-                        await _traktApi.SendMovieStatusUpdateAsync(video as Movie, MediaStatus.Stop, traktUser, progressPercent).ConfigureAwait(false);
+                        await _traktApi.SendMovieStatusUpdateAsync(video as Movie, MediaStatus.Paused, traktUser, progressPercent, CancellationToken.None).ConfigureAwait(false);
                     }
                     else
                     {
-                        await _traktApi.SendEpisodeStatusUpdateAsync(video as Episode, MediaStatus.Stop, traktUser, progressPercent).ConfigureAwait(false);
+                        await _traktApi.SendEpisodeStatusUpdateAsync(video as Episode, MediaStatus.Paused, traktUser, progressPercent, CancellationToken.None).ConfigureAwait(false);
                     }
                 }
 
