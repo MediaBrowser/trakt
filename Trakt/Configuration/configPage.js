@@ -144,19 +144,6 @@ define([
     ApiClient.getPluginConfiguration(
       TraktConfigurationPage.pluginUniqueId
     ).then(function (config) {
-      console.log({
-        config,
-        currentUserId,
-        traktPIN: form.elements.txtTraktPIN.value,
-        locationsExcluded,
-        skipUnwatchedImportFromTrakt:
-          form.elements.chkSkipUnwatchedImportFromTrakt.checked,
-        postWatchedHistory: form.elements.chkPostWatchedHistory.checked,
-        syncCollection: form.elements.chkSyncCollection.checked,
-        extraLogging: form.elements.chkExtraLogging.checked,
-        exportMediaInfo: form.elements.chkExportMediaInfo.checked,
-      });
-
       var currentUserConfig = config.TraktUsers.filter(function (user) {
         return user.LinkedMbUserId == currentUserId;
       })[0];
