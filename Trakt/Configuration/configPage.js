@@ -22,95 +22,97 @@ define([
     return this;
   };
 
-  var TraktConfigurationPage = {
-    pluginUniqueId: "8abc6789-fde2-4705-8592-4028806fa343",
-    loadConfiguration: function (userId, form) {
-      ApiClient.getPluginConfiguration(
-        TraktConfigurationPage.pluginUniqueId
-      ).then(function (config) {
-        var currentUserConfig = config.TraktUsers.filter(function (curr) {
-          return curr.LinkedMbUserId == userId;
-        })[0];
-        var formElements = document.querySelector(
-          "#traktConfigurationForm"
-        ).elements;
-        // User doesn't have a config, so create a default one.
-        if (!currentUserConfig) {
-          // You don't have to put every property in here, just the ones the UI is expecting (below)
-          currentUserConfig = {
-            PIN: "",
-            SkipUnwatchedImportFromTrakt: true,
-            PostWatchedHistory: true,
-            SyncCollection: true,
-            ExtraLogging: false,
-            ExportMediaInfo: false,
-          };
-        }
+  var pluginUniqueId = "8abc6789-fde2-4705-8592-4028806fa343";
 
-        // Default this to an empty array so the rendering code doesn't have to worry about it
-        currentUserConfig.LocationsExcluded =
-          currentUserConfig.LocationsExcluded || [];
-
-        formElements.txtTraktPIN.value = currentUserConfig.PIN;
-        formElements.chkSkipUnwatchedImportFromTrakt.checked =
-          currentUserConfig.SkipUnwatchedImportFromTrakt;
-        formElements.chkPostWatchedHistory.checked =
-          currentUserConfig.PostWatchedHistory;
-        formElements.chkSyncCollection.checked =
-          currentUserConfig.SyncCollection;
-        formElements.chkExtraLogging.checked = currentUserConfig.ExtraLogging;
-        formElements.chkExportMediaInfo.checked =
-          currentUserConfig.ExportMediaInfo;
-        // List the folders the user can access
-        ApiClient.getVirtualFolders(userId).then(function (virtualFolders) {
-          TraktConfigurationPage.loadFolders(currentUserConfig, virtualFolders, form);
-        });
-
-        loading.hide();
-      });
-    },
-    populateUsers: function (users, userSelect) {
-      userSelect.innerHTML = "";
-      for (var i = 0, length = users.length; i < length; i++) {
-        var user = users[i];
-        var opt = document.createElement("option");
-        opt.value = user.Id;
-        opt.text = user.Name;
-        userSelect.add(opt);
+  function loadConfiguration(userId, form) {
+    ApiClient.getPluginConfiguration(
+      pluginUniqueId
+    ).then(function (config) {
+      var currentUserConfig = config.TraktUsers.filter(function (curr) {
+        return curr.LinkedMbUserId == userId;
+      })[0];
+      var formElements = document.querySelector(
+        "#traktConfigurationForm"
+      ).elements;
+      // User doesn't have a config, so create a default one.
+      if (!currentUserConfig) {
+        // You don't have to put every property in here, just the ones the UI is expecting (below)
+        currentUserConfig = {
+          PIN: "",
+          SkipUnwatchedImportFromTrakt: true,
+          PostWatchedHistory: true,
+          SyncCollection: true,
+          ExtraLogging: false,
+          ExportMediaInfo: false,
+        };
       }
-    },
-    loadFolders: function (currentUserConfig, virtualFolders, form) {
-      var traktLocationElem = form.querySelector('#divTraktLocations');
-      var html = virtualFolders.reduce(function(acc, virtualFolder) {
-        acc.push(TraktConfigurationPage.getFolderHtml(
-          currentUserConfig,
-          virtualFolder,
-        ));
-        return acc;
-      }, '<div data-role="controlgroup">').push('</div>');
 
-      traktLocationElem.innerHTML = html.join('');
-      // How to trigger this without jQuery?
-      $(traktLocationElem).trigger("create");
-    },
-    getFolderHtml: function (currentUserConfig, virtualFolder) {
-      return virtualFolder.Locations.map(function(location) {
-        var isChecked = currentUserConfig.LocationsExcluded.filter(function (
-          current
-        ) {
-          return current.toLowerCase() === location.toLowerCase();
-        }).length;
-        var checkedAttribute = isChecked ? 'checked="checked"' : "";
-        return '<label><input is="emby-checkbox" class="chkTraktLocation" type="checkbox" data-mini="true" name="trakt_location"' +
-        ' value="' +
-        location +
-        '" ' +
-        checkedAttribute +
-        " /><span>" +
-        location +
-        "</span></label>";
-      }).join('');
-    },
+      // Default this to an empty array so the rendering code doesn't have to worry about it
+      currentUserConfig.LocationsExcluded =
+        currentUserConfig.LocationsExcluded || [];
+
+      formElements.txtTraktPIN.value = currentUserConfig.PIN;
+      formElements.chkSkipUnwatchedImportFromTrakt.checked =
+        currentUserConfig.SkipUnwatchedImportFromTrakt;
+      formElements.chkPostWatchedHistory.checked =
+        currentUserConfig.PostWatchedHistory;
+      formElements.chkSyncCollection.checked =
+        currentUserConfig.SyncCollection;
+      formElements.chkExtraLogging.checked = currentUserConfig.ExtraLogging;
+      formElements.chkExportMediaInfo.checked =
+        currentUserConfig.ExportMediaInfo;
+      // List the folders the user can access
+      ApiClient.getVirtualFolders(userId).then(function (virtualFolders) {
+        loadFolders(currentUserConfig, virtualFolders, form);
+      });
+
+      loading.hide();
+    });
+  };
+
+  function populateUsers(users, userSelect) {
+    userSelect.innerHTML = "";
+    for (var i = 0, length = users.length; i < length; i++) {
+      var user = users[i];
+      var opt = document.createElement("option");
+      opt.value = user.Id;
+      opt.text = user.Name;
+      userSelect.add(opt);
+    }
+  };
+
+  function loadFolders(currentUserConfig, virtualFolders, form) {
+    var traktLocationElem = form.querySelector('#divTraktLocations');
+    var html = virtualFolders.reduce(function(acc, virtualFolder) {
+      acc.push(getFolderHtml(
+        currentUserConfig,
+        virtualFolder,
+      ));
+      return acc;
+    }, '<div data-role="controlgroup">').push('</div>');
+
+    traktLocationElem.innerHTML = html.join('');
+    // How to trigger this without jQuery?
+    $(traktLocationElem).trigger("create");
+  };
+
+  function getFolderHtml(currentUserConfig, virtualFolder) {
+    return virtualFolder.Locations.map(function(location) {
+      var isChecked = currentUserConfig.LocationsExcluded.filter(function (
+        current
+      ) {
+        return current.toLowerCase() === location.toLowerCase();
+      }).length;
+      var checkedAttribute = isChecked ? 'checked="checked"' : "";
+      return '<label><input is="emby-checkbox" class="chkTraktLocation" type="checkbox" data-mini="true" name="trakt_location"' +
+      ' value="' +
+      location +
+      '" ' +
+      checkedAttribute +
+      " /><span>" +
+      location +
+      "</span></label>";
+    }).join('');
   };
 
   function onSubmit(ev) {
@@ -130,9 +132,7 @@ define([
         return checkbox.value;
       });
 
-    ApiClient.getPluginConfiguration(
-      TraktConfigurationPage.pluginUniqueId
-    ).then(function (config) {
+    ApiClient.getPluginConfiguration(pluginUniqueId).then(function (config) {
       var currentUserConfig = config.TraktUsers.filter(function (user) {
         return user.LinkedMbUserId == currentUserId;
       })[0];
@@ -159,15 +159,15 @@ define([
         config.TraktUsers.remove(config.TraktUsers.indexOf(currentUserConfig));
       }
       ApiClient.updatePluginConfiguration(
-        TraktConfigurationPage.pluginUniqueId,
+        pluginUniqueId,
         config
       ).then(function (result) {
         Dashboard.processPluginConfigurationUpdateResult(result);
         ApiClient.getUsers().then(function (users) {
           var currentUserId = form.elements.selectUser.value;
-          TraktConfigurationPage.populateUsers(users, form.elements.selectUser);
+          populateUsers(users, form.elements.selectUser);
           form.elements.selectUser.value = currentUserId;
-          TraktConfigurationPage.loadConfiguration(currentUserId, form);
+          loadConfiguration(currentUserId, form);
           Dashboard.alert("Settings saved.");
         });
       });
@@ -182,16 +182,15 @@ define([
     form.addEventListener("submit", onSubmit);
 
     userSelect.addEventListener("change", function (ev) {
-      TraktConfigurationPage.loadConfiguration(ev.currentTarget.value, form);
+      loadConfiguration(ev.currentTarget.value, form);
     });
 
     view.addEventListener("viewshow", function () {
       loading.show();
 
       ApiClient.getUsers().then(function (users) {
-        TraktConfigurationPage.populateUsers(users, userSelect);
-        var currentUserId = userSelect.value;
-        TraktConfigurationPage.loadConfiguration(currentUserId, form);
+        populateUsers(users, userSelect);
+        loadConfiguration(userSelect.value, form);
       });
     });
   };
