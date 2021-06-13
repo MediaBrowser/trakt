@@ -81,46 +81,35 @@ define([
     },
     loadFolders: function (currentUserConfig, virtualFolders, form) {
       var traktLocationElem = form.querySelector('#divTraktLocations');
-      var html = "";
-      html += '<div data-role="controlgroup">';
-      for (var i = 0, length = virtualFolders.length; i < length; i++) {
-        var virtualFolder = virtualFolders[i];
-        html += TraktConfigurationPage.getFolderHtml(
+      var html = virtualFolders.reduce(function(acc, virtualFolder) {
+        acc.push(TraktConfigurationPage.getFolderHtml(
           currentUserConfig,
           virtualFolder,
-          i
-        );
-      }
-      html += "</div>";
-      traktLocationElem.innerHTML = html;
+        ));
+        return acc;
+      }, '<div data-role="controlgroup">').push('</div>');
+
+      traktLocationElem.innerHTML = html.join('');
       // How to trigger this without jQuery?
       $(traktLocationElem).trigger("create");
     },
-    getFolderHtml: function (currentUserConfig, virtualFolder, index) {
-      var html = "";
-      for (
-        var i = 0, length = virtualFolder.Locations.length;
-        i < length;
-        i++
-      ) {
-        var location = virtualFolder.Locations[i];
+    getFolderHtml: function (currentUserConfig, virtualFolder) {
+      return virtualFolder.Locations.map(function(location) {
         var isChecked = currentUserConfig.LocationsExcluded.filter(function (
           current
         ) {
-          return current.toLowerCase() == location.toLowerCase();
+          return current.toLowerCase() === location.toLowerCase();
         }).length;
         var checkedAttribute = isChecked ? 'checked="checked"' : "";
-        html +=
-          '<label><input is="emby-checkbox" class="chkTraktLocation" type="checkbox" data-mini="true" name="trakt_location"' +
-          ' value="' +
-          location +
-          '" ' +
-          checkedAttribute +
-          " /><span>" +
-          location +
-          "</span></label>";
-      }
-      return html;
+        return '<label><input is="emby-checkbox" class="chkTraktLocation" type="checkbox" data-mini="true" name="trakt_location"' +
+        ' value="' +
+        location +
+        '" ' +
+        checkedAttribute +
+        " /><span>" +
+        location +
+        "</span></label>";
+      }).join('');
     },
   };
 
@@ -166,7 +155,7 @@ define([
       currentUserConfig.LinkedMbUserId = currentUserId;
       currentUserConfig.LocationsExcluded = locationsExcluded;
 
-      if (currentUserConfig.UserName == "") {
+      if (currentUserConfig.UserName === "") {
         config.TraktUsers.remove(config.TraktUsers.indexOf(currentUserConfig));
       }
       ApiClient.updatePluginConfiguration(
