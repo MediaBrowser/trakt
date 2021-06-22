@@ -25,9 +25,7 @@ define([
   var pluginUniqueId = "8abc6789-fde2-4705-8592-4028806fa343";
 
   function loadConfiguration(userId, form) {
-    ApiClient.getPluginConfiguration(
-      pluginUniqueId
-    ).then(function (config) {
+    ApiClient.getPluginConfiguration(pluginUniqueId).then(function (config) {
       var currentUserConfig = config.TraktUsers.filter(function (curr) {
         return curr.LinkedMbUserId == userId;
       })[0];
@@ -56,8 +54,7 @@ define([
         currentUserConfig.SkipUnwatchedImportFromTrakt;
       formElements.chkPostWatchedHistory.checked =
         currentUserConfig.PostWatchedHistory;
-      formElements.chkSyncCollection.checked =
-        currentUserConfig.SyncCollection;
+      formElements.chkSyncCollection.checked = currentUserConfig.SyncCollection;
       formElements.chkExtraLogging.checked = currentUserConfig.ExtraLogging;
       formElements.chkExportMediaInfo.checked =
         currentUserConfig.ExportMediaInfo;
@@ -68,7 +65,7 @@ define([
 
       loading.hide();
     });
-  };
+  }
 
   function populateUsers(users, userSelect) {
     userSelect.innerHTML = "";
@@ -79,41 +76,34 @@ define([
       opt.text = user.Name;
       userSelect.add(opt);
     }
-  };
+  }
 
   function loadFolders(currentUserConfig, virtualFolders, form) {
-    var traktLocationElem = form.querySelector('#divTraktLocations');
-    var html = virtualFolders.reduce(function(acc, virtualFolder) {
-      acc.push(getFolderHtml(
-        currentUserConfig,
-        virtualFolder,
-      ));
+    var traktLocationElem = form.querySelector("#divTraktLocations");
+    var html = virtualFolders.reduce(function (acc, virtualFolder) {
+      acc.push(getFolderHtml(currentUserConfig, virtualFolder));
       return acc;
-    }, '<div data-role="controlgroup">').push('</div>');
-
-    traktLocationElem.innerHTML = html.join('');
+    }, []);
+    traktLocationElem.innerHTML = html.join("");
     // How to trigger this without jQuery?
     $(traktLocationElem).trigger("create");
-  };
+  }
 
   function getFolderHtml(currentUserConfig, virtualFolder) {
-    return virtualFolder.Locations.map(function(location) {
+    return virtualFolder.Locations.map(function (location) {
       var isChecked = currentUserConfig.LocationsExcluded.filter(function (
         current
       ) {
-        return current.toLowerCase() === location.toLowerCase();
+        return current && current.toLowerCase() === location.toLowerCase();
       }).length;
       var checkedAttribute = isChecked ? 'checked="checked"' : "";
-      return '<label><input is="emby-checkbox" class="chkTraktLocation" type="checkbox" data-mini="true" name="trakt_location"' +
-      ' value="' +
-      location +
-      '" ' +
-      checkedAttribute +
-      " /><span>" +
-      location +
-      "</span></label>";
-    }).join('');
-  };
+      return (
+        '<label class="emby-checkbox-label"><input is="emby-checkbox" class="chkTraktLocation"' +
+        ' type="checkbox" data-mini="true" name="trakt_location"' +
+        ' value="' + location + '" ' + checkedAttribute + " /><span>" + location + "</span></label>"
+      );
+    }).join("");
+  }
 
   function onSubmit(ev) {
     ev.preventDefault();
@@ -158,25 +148,24 @@ define([
       if (currentUserConfig.UserName === "") {
         config.TraktUsers.remove(config.TraktUsers.indexOf(currentUserConfig));
       }
-      ApiClient.updatePluginConfiguration(
-        pluginUniqueId,
-        config
-      ).then(function (result) {
-        Dashboard.processPluginConfigurationUpdateResult(result);
-        ApiClient.getUsers().then(function (users) {
-          var currentUserId = form.elements.selectUser.value;
-          populateUsers(users, form.elements.selectUser);
-          form.elements.selectUser.value = currentUserId;
-          loadConfiguration(currentUserId, form);
-          Dashboard.alert("Settings saved.");
-        });
-      });
+      ApiClient.updatePluginConfiguration(pluginUniqueId, config).then(
+        function (result) {
+          Dashboard.processPluginConfigurationUpdateResult(result);
+          ApiClient.getUsers().then(function (users) {
+            var currentUserId = form.elements.selectUser.value;
+            populateUsers(users, form.elements.selectUser);
+            form.elements.selectUser.value = currentUserId;
+            loadConfiguration(currentUserId, form);
+            Dashboard.alert("Settings saved.");
+          });
+        }
+      );
     });
 
     return false;
   }
 
-  return function (view) {
+  return function init(view) {
     var form = view.querySelector("#traktConfigurationForm");
     var userSelect = form.elements.selectUser;
     form.addEventListener("submit", onSubmit);
