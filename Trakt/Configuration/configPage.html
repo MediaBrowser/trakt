@@ -5,7 +5,7 @@
 </head>
 <body>
     <!-- ReSharper disable UnknownCssClass -->
-    <div id="traktConfigurationPage" data-role="page" class="page type-interior pluginConfigurationPage traktConfigurationPage" data-require="emby-input,emby-button,emby-select,emby-checkbox">
+    <div id="traktConfigurationPage" data-role="page" class="page type-interior pluginConfigurationPage traktConfigurationPage" data-controller="__plugin/traktjs">
         <div data-role="content">
             <div class="content-primary">
 
@@ -16,7 +16,7 @@
                     <div style="height:0; overflow: hidden;"><input type="text" name="fakeusernameremembered" tabindex="-1" /><input type="password" name="fakepasswordremembered" tabindex="-1" /></div>
 
                     <div class="selectContainer">
-                        <select is="emby-select" id="selectUser" name="selectUser" onchange="TraktConfigurationPage.loadConfiguration(this.value, $(this).parents('.page')[0]);" label="Configure Trakt for:"></select>
+                        <select is="emby-select" id="selectUser" name="selectUser" label="Configure Trakt for:"></select>
                     </div>
                     <div class="inputContainer">
                         <input is="emby-input" id="txtTraktPIN" name="txtTraktPIN" type="text" label="Authentication PIN:" />
@@ -81,146 +81,6 @@
                 </form>
             </div>
         </div>
-
-        <!-- ReSharper disable UseOfImplicitGlobalInFunctionScope -->
-        <script type="text/javascript">
-
-            Array.prototype.remove = function () {
-                var what, a = arguments, L = a.length, ax;
-                while (L && this.length) {
-                    what = a[--L];
-                    while ((ax = this.indexOf(what)) !== -1) {
-                        this.splice(ax, 1);
-                    }
-                }
-                return this;
-            };
-
-            var TraktConfigurationPage =
-                {
-                    pluginUniqueId: "8abc6789-fde2-4705-8592-4028806fa343",
-                    loadConfiguration: function (userId, page) {
-                        Dashboard.showLoadingMsg();
-                        ApiClient.getPluginConfiguration(TraktConfigurationPage.pluginUniqueId).then(function (config) {
-                            var currentUserConfig = config.TraktUsers.filter(function (curr) {
-                                return curr.LinkedMbUserId == userId;
-                                //return true;
-                            })[0];
-                            // User doesn't have a config, so create a default one.
-                            if (!currentUserConfig) {
-                                // You don't have to put every property in here, just the ones the UI is expecting (below)
-                                currentUserConfig = {
-                                    PIN: "",
-                                    SkipUnwatchedImportFromTrakt: true,
-                                    PostWatchedHistory: true,
-                                    SyncCollection: true,
-                                    ExtraLogging: false,
-                                    ExportMediaInfo: false
-                                };
-                            }
-                            // Default this to an empty array so the rendering code doesn't have to worry about it
-                            currentUserConfig.LocationsExcluded = currentUserConfig.LocationsExcluded || [];
-                            $('#txtTraktPIN', page).val(currentUserConfig.PIN); 
-                            page.querySelector('#chkSkipUnwatchedImportFromTrakt').checked = currentUserConfig.SkipUnwatchedImportFromTrakt;
-                            page.querySelector('#chkPostWatchedHistory').checked = currentUserConfig.PostWatchedHistory;
-                            page.querySelector('#chkSyncCollection').checked = currentUserConfig.SyncCollection;
-                            page.querySelector('#chkExtraLogging').checked = currentUserConfig.ExtraLogging;
-                            page.querySelector('#chkExportMediaInfo').checked = currentUserConfig.ExportMediaInfo;
-                            // List the folders the user can access
-                            ApiClient.getVirtualFolders(userId).then(function (result) {
-                                TraktConfigurationPage.loadFolders(currentUserConfig, result);
-                            });
-                            Dashboard.hideLoadingMsg();
-                        });
-                    },
-                    populateUsers: function (users) {
-                        var html = "";
-                        for (var i = 0, length = users.length; i < length; i++) {
-                            var user = users[i];
-                            html += '<option value="' + user.Id + '">' + user.Name + '</option>';
-                        }
-                        $('#selectUser', $.mobile.activePage).html(html);
-                    },
-                    loadFolders: function (currentUserConfig, virtualFolders) {
-                        var page = $.mobile.activePage;
-                        var html = "";
-                        html += '<div data-role="controlgroup">';
-                        for (var i = 0, length = virtualFolders.length; i < length; i++) {
-                            var virtualFolder = virtualFolders[i];
-                            html += TraktConfigurationPage.getFolderHtml(currentUserConfig, virtualFolder, i);
-                        }
-                        html += '</div>';
-                        $('#divTraktLocations', page).html(html).trigger('create');
-                    },
-                    getFolderHtml: function (currentUserConfig, virtualFolder, index) {
-                        var html = "";
-                        for (var i = 0, length = virtualFolder.Locations.length; i < length; i++) {
-                            var id = "chkFolder" + index + "_" + i;
-                            var location = virtualFolder.Locations[i];
-                            var isChecked = currentUserConfig.LocationsExcluded.filter(function (current) {
-                                return current.toLowerCase() == location.toLowerCase();
-                            }).length;
-                            var checkedAttribute = isChecked ? 'checked="checked"' : "";
-                            html += '<label><input is="emby-checkbox" class="chkTraktLocation" type="checkbox" data-mini="true" id="' + id + '" name="' + id + '" data-location="' + location + '" ' + checkedAttribute + ' /><span>' + location + '</span></label>';
-                        }
-                        return html;
-                    }
-                };
-
-            $('.traktConfigurationPage').on('pageinit', function () {
-                Dashboard.showLoadingMsg();
-                var page = this;
-                $('#traktConfigurationForm', page).on('submit', function () {
-                    Dashboard.showLoadingMsg();
-                    var currentUserId = $('#selectUser', page).val();
-                    ApiClient.getPluginConfiguration(TraktConfigurationPage.pluginUniqueId).then(function (config) {
-                        var currentUserConfig = config.TraktUsers.filter(function (curr) {
-                            return curr.LinkedMbUserId == currentUserId;
-                        })[0];
-                        // User doesn't have a config, so create a default one.
-                        if (!currentUserConfig) {
-                            currentUserConfig = {};
-                            config.TraktUsers.push(currentUserConfig);
-                        }
-                        currentUserConfig.SkipUnwatchedImportFromTrakt = page.querySelector('#chkSkipUnwatchedImportFromTrakt').checked;
-                        currentUserConfig.PostWatchedHistory = page.querySelector('#chkPostWatchedHistory').checked;
-                        currentUserConfig.SyncCollection = page.querySelector('#chkSyncCollection').checked;
-                        currentUserConfig.ExtraLogging = page.querySelector('#chkExtraLogging').checked;
-                        currentUserConfig.ExportMediaInfo = page.querySelector('#chkExportMediaInfo').checked;
-                        currentUserConfig.PIN = $('#txtTraktPIN', page).val();
-                        currentUserConfig.LinkedMbUserId = currentUserId;
-                        currentUserConfig.LocationsExcluded = $('.chkTraktLocation:checked', page).map(function () {
-                            return this.getAttribute('data-location');
-                        }).get();
-                        if (currentUserConfig.UserName == '') {
-                            config.TraktUsers.remove(config.TraktUsers.indexOf(currentUserConfig));
-                        }
-                        ApiClient.updatePluginConfiguration(TraktConfigurationPage.pluginUniqueId, config).then(function (result) {
-                            Dashboard.processPluginConfigurationUpdateResult(result);
-                            ApiClient.getUsers().then(function (users) {
-                                var currentUserId = $('#selectUser', page).val();
-                                TraktConfigurationPage.populateUsers(users);
-                                $('#selectUser', page).val(currentUserId);
-                                TraktConfigurationPage.loadConfiguration(currentUserId, page);
-                                Dashboard.alert('Settings saved.');
-                            });
-                        });
-                    });
-                    return false;
-                });
-            });
-            $('.traktConfigurationPage').on('pageshow', function () {
-                Dashboard.showLoadingMsg();
-                var page = this;
-                ApiClient.getUsers().then(function (users) {
-                    TraktConfigurationPage.populateUsers(users);
-                    var currentUserId = $('#selectUser', page).val();
-                    TraktConfigurationPage.loadConfiguration(currentUserId, page);
-                });
-            });
-        </script>
-        <!-- ReSharper restore UseOfImplicitGlobalInFunctionScope -->
-
     </div>
     <!-- ReSharper restore UnknownCssClass -->
 </body>
